@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.002002';
+our $VERSION = '0.002003';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -1098,7 +1098,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.002002
+Version 0.002003
 
 =head1 SYNOPSIS
 
@@ -1172,15 +1172,18 @@ MARC::Transform use MARC::Record.
 
 =head2 new()
 
-    $record = MARC::Transform->new($record,\@yaml);
+    $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-This is the only method you'll use. It takes a MARC::Record and a YAML arrayref as arguments.
+This is the only method you'll use. It takes a MARC::Record and a YAML path as arguments. You can also define your YAML into a variable and use it to transform the record like this : 
+
+    my $yaml="delete : f501d\n";
+    $record = MARC::Transform->new ( $record, $yaml );
 
 =head3 Verbose mode
 
 Each YAML rule (see basis below to understand what is a rule) generates a script that is evaluated, in the record, for each field and subfield specified in the condition (If there is a condition). By adding an argument B<1> to the method, it displays the generated script. This can be useful to understand what is happening:
 
-    $record = MARC::Transform->new($record,\@yaml,1);
+    $record = MARC::Transform->new($record,"/path/conf.yaml",1);
 
 =head1 YAML
 
@@ -2245,7 +2248,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 VERSION
 
-Version 0.002002
+Version 0.002003
 
 =head1 SYNOPSIS
 
@@ -2319,15 +2322,18 @@ MARC::Transform utilise MARC::Record.
 
 =head2 new()
 
-    $record = MARC::Transform->new($record,\@yaml);
+    $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-C'est la seule méthode que vous utiliserez. Elle prend un MARC::Record et un arrayref YAML comme arguments.
+C'est la seule méthode que vous utiliserez. Elle prend un MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi écrire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
+
+    my $yaml="delete : f501d\n";
+    $record = MARC::Transform->new ( $record, $yaml );
 
 =head3 Verbose mode
 
 Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règle) génère un script qui est évalué, dans la notice, pour chaque champ et sous-champ spécifié dans la condition (si il y a une condition). En ajoutant un argument B<1> à la méthode, elle affiche le script généré. Cela peut être utile pour comprendre ce qu'il se passe:
 
-    $record = MARC::Transform->new($record,\@yaml,1);
+    $record = MARC::Transform->new($record,"/path/conf.yaml",1);
 
 =head1 YAML
 
