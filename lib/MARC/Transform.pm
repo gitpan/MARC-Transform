@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.002001';
+our $VERSION = '0.002002';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -1098,7 +1098,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.002001
+Version 0.002002
 
 =head1 SYNOPSIS
 
@@ -1117,13 +1117,14 @@ B<Perl script:>
 
     print "--init record--\n". $record->as_formatted ."\n";
 
-    # We transform our record with our 
-    # YAML configuration file (with its absolute or relative path):
-    $record = MARC::Transform->new ( $record, "conf.yaml" );
+    # We transform our record with our YAML configuration file
+    # with its absolute path (or relative if called 
+    # from the right path ) :
+    $record = MARC::Transform->new ( $record, "/path/conf.yaml" );
 
     # You can also define your YAML into a variable:
     my $yaml="delete : f501d\n";
-    # We transform our record with our variable:
+    # and use it to transform the record:
     $record = MARC::Transform->new ( $record, $yaml );
 
     print "\n--transformed record--\n". $record->as_formatted ."\n";
@@ -2042,6 +2043,8 @@ result (with C<< $record->as_formatted >> ):
 
 =over 4
 
+=item * If your script return an error like "YAML Error: Stream does not end with newline character", it's easy to fix. If you define your YAML into a variable, it must end with a new blank line. If you give a path to your YAML file, it is probably not good : try with an absolut path.
+
 =item * Restriction: the specific case of double-quotes (") and dollar signs ($): 
 
 In YAML, these characters are interpreted differently. To use them in string context, you will need to replace them in YAML by C<#_dbquote_#> (for ") and C<#_dollars_#> (for $):
@@ -2242,7 +2245,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 VERSION
 
-Version 0.002001
+Version 0.002002
 
 =head1 SYNOPSIS
 
@@ -2262,12 +2265,13 @@ B<Perl script:>
     print "--notice d'origine--\n". $record->as_formatted ."\n";
 
     # Nous transformons notre notice avec notre fichier de 
-    # configuration YAML (avec son chemin relatif ou absolu):
-    $record = MARC::Transform->new ( $record, "conf.yaml" );
+    # configuration YAML avec son chemin absolu ( ou
+    # relatif si il est appelé depuis le bon endroit) :
+    $record = MARC::Transform->new ( $record, "/path/conf.yaml" );
 
     # Vous pouvez aussi écrire votre YAML dans une variable:
     my $yaml="delete : f501d\n";
-    # Nous transformons notre notice avec notre variable:
+    # et l'utiliser pour transformer la notice:
     $record = MARC::Transform->new ( $record, $yaml );
 
     print "\n--notice transformée--\n". $record->as_formatted ."\n";
@@ -3185,6 +3189,8 @@ résultat (avec C<< $record->as_formatted >> ):
 =head1 Dernières astuces et un gros exemple de YAML
 
 =over 4
+
+=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple à fixer. Si vous avez défini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
 
 =item * Restriction: le cas spécifique des guillemets doubles (") et du symbole dollar ($): 
 
