@@ -178,45 +178,20 @@ ok(Compare($v1aa.$v1ba,$v1b.$v1b))
     or diag(Dump $v1aa.$v1ba);
 
 #test 2
-my $record2a = MARC::Record->new();
-$record2a->leader('optionnal leader');
-$record2a->insert_fields_ordered( MARC::Field->new( '005', 'controlfield_content' ));
-$record2a->insert_fields_ordered( MARC::Field->new( '008', 'controlfield_content8b' ));
-$record2a->insert_fields_ordered( MARC::Field->new( '008', 'controlfield_content8a' ));
-$record2a->insert_fields_ordered( MARC::Field->new( '501', '', '', 'a' => 'foo', 'a' => 'foao', 'b' => '1', 'b' => 'baoar', 'c' => 'big') );
-$record2a->insert_fields_ordered( MARC::Field->new( '501', '', '', 'c' => '1') );
-$record2a->insert_fields_ordered( MARC::Field->new( '502', '', '', 'a' => 'I want "$"') );
-$record2a->insert_fields_ordered( MARC::Field->new( '106', '', '', 'a' => 'VaLuE') );
-$record2a->insert_fields_ordered( MARC::Field->new( '503', '', '', 'a' => 'fee', 'a' => 'babar') );
-$record2a->insert_fields_ordered( MARC::Field->new( '504', '', '', 'a' => 'zut', 'a' => 'sisi') );
-$record2a->insert_fields_ordered( MARC::Field->new( '604', '', '', 'a' => 'foo', 'a' => 'foo', 'b' => 'bar', 'c' => 'truc') );
-$record2a->insert_fields_ordered( MARC::Field->new( '401', '', '', 'a' => 'afooa') );
-$record2a->insert_fields_ordered( MARC::Field->new( '402', '1', '', 'a' => 'a402a1') );
-$record2a->insert_fields_ordered( MARC::Field->new( '402', '', '2', 'a' => 'a402a2') );
-my $record2b = MARC::Record->new();
-$record2b->leader('optionnal leader');
-$record2b->insert_fields_ordered( MARC::Field->new( '005', 'controlfield_content' ));
-$record2b->insert_fields_ordered( MARC::Field->new( '008', 'controlfield_content8b' ));
-$record2b->insert_fields_ordered( MARC::Field->new( '008', 'controlfield_content8a' ));
-$record2b->insert_fields_ordered( MARC::Field->new( '501', '', '', 'a' => 'foo', 'a' => 'foao', 'b' => '1', 'b' => 'baoar', 'c' => 'big') );
-$record2b->insert_fields_ordered( MARC::Field->new( '501', '', '', 'c' => '1') );
-$record2b->insert_fields_ordered( MARC::Field->new( '502', '', '', 'a' => 'I want "$"') );
-$record2b->insert_fields_ordered( MARC::Field->new( '106', '', '', 'a' => 'VaLuE') );
-$record2b->insert_fields_ordered( MARC::Field->new( '503', '', '', 'a' => 'fee', 'a' => 'babar') );
-$record2b->insert_fields_ordered( MARC::Field->new( '504', '', '', 'a' => 'zut', 'a' => 'sisi') );
-$record2b->insert_fields_ordered( MARC::Field->new( '604', '', '', 'a' => 'foo', 'a' => 'foo', 'b' => 'bar', 'c' => 'truc') );
-$record2b->insert_fields_ordered( MARC::Field->new( '401', '', '', 'a' => 'afooa') );
-$record2b->insert_fields_ordered( MARC::Field->new( '402', '1', '', 'a' => 'a402a1') );
-$record2b->insert_fields_ordered( MARC::Field->new( '402', '', '2', 'a' => 'a402a2') );
-#print "--init record--\n". $record1->as_formatted;
-$record2a = MARC::Transform->new($record2a,"$thisabsolutepath/conf.yaml");
-$record2b = MARC::Transform->new($record2b,"$thisabsolutepath/conf.yaml");
-#print "\n--transformed record--\n". $record1b->as_formatted ."\n";
-my $v2aa=YAML::Dump recordtostring($record2a);
-my $v2ba=YAML::Dump recordtostring($record2b);
-my $v2b=YAML::Dump 'optionnalaleader||||006:UTF-8||007:controlfield_content8b||008:controlfield_content8a||008:controlfield_content8b||106:  |a:VaLuE||401:  |b:new value of the 401 conditions field||501:  |a:foao|a:foo|b:baoar|b:update only the first b in condition\'s field 501|c:updated value of all c in condition\'s field||501:  |c:1||502:  |a:I want "$"||502:  |a:this is the value of a subfield of a new 502 field||503:  |a:babar|a:fee|b:mandatory b in condition\'s field||504:  |a:updated value of all 504a if exists|a:updated value of all 504a if exists||600:  |a:first a subfield of this new 600 field|a:second a subfield of this new 600 field|b:the 600b value||602: 2|a:a402a2||602:1 |a:a402a1||604:  |a:foo|a:update only the first a in 604|b:openbar|c:New York||605:  |a:"I want "$"" contain a $ sign||700:  |a:the a subfield of this mandatory 700 field|b:beber';
-ok(Compare($v2aa.$v2ba,$v2b.$v2b))
-    or diag(Dump $v2aa.$v2ba);
+my $record2 = MARC::Record->new();
+$record2->insert_fields_ordered( MARC::Field->new( '501', '', '', 'a' => 'foo') );
+#print "--init record--\n". $record2->as_formatted;
+my $yaml2 = '---
+condition : $f501a or $f502a
+create :
+ f600a : aaa
+';
+$record2 = MARC::Transform->new($record2,$yaml2);
+#print "\n--transformed record--\n". $record2->as_formatted ."\n";
+my $v2a=YAML::Dump recordtostring($record2);
+my $v2b=YAML::Dump "                        ||||501:  |a:foo||600:  |a:aaa";
+ok(Compare($v2a,$v2b))
+    or diag(Dump $v2a);
 
 #test 3
 my $record3 = MARC::Record->new();

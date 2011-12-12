@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.002003';
+our $VERSION = '0.002004';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -967,7 +967,7 @@ sub testrule {
     my ($rul, $actionsin, $actionsout, $subs) = @_;
     $globalcondition="";
     $subs="no warnings 'redefine';".$subs if $subs ne "";
-    my $globalconditionstart='{ '."\n".$subs."\n".' my $boolcond=0;my $currentfield;';
+    my $globalconditionstart='{ '."\n".$subs."\n".' my $boolcond=0;my $currentfield;no warnings \'uninitialized\';';
     my $globalconditionint="";
     my $globalconditionend="";#print Data::Dumper::Dumper ($rul);
     
@@ -1007,7 +1007,6 @@ sub testrule {
         {
             my %tag_listtag = map { $_, 1 } @{$tag_list{$tag}};
             my @tag_listtagunique = keys %tag_listtag;
-            my $booldefinedfield=0;
             $globalconditionstart.='my $f'.$tag.';';
             foreach my $subtag (@tag_listtagunique)
             {
@@ -1016,19 +1015,18 @@ sub testrule {
             }
             if ( defined $record->field($tag) )
             {
-                $booldefinedfield=1;
-            }
-            $globalconditionint.='if ( '.$booldefinedfield.' ){for $f'.$tag.' ( $record->field("'.$tag.'") ) { $currentfield=\$f'.$tag.';'."\n";
-            $globalconditionend.='}}';
-            
-            foreach my $subtag (@tag_listtagunique)
-            {
-                if ($subtag ne "tempvalueforcurrentfield" and $tag > "010") {
-                    $globalconditionint.='if ( defined $f'.$tag.'->subfield("'.$subtag.'") ) { for $f'.$tag.$subtag.' ( $f'.$tag.'->subfield("'.$subtag.'") ){'."\n";
-                    $globalconditionend.='}}';
-                }
-                elsif ($subtag ne "tempvalueforcurrentfield") {
-                    $globalconditionint.='$f'.$tag.$subtag.' = $f'.$tag.'->data(); '."\n";
+                $globalconditionint.='for $f'.$tag.' ( $record->field("'.$tag.'") ) { $currentfield=\$f'.$tag.';'."\n";
+                $globalconditionend.='}';
+                
+                foreach my $subtag (@tag_listtagunique)
+                {
+                    if ($subtag ne "tempvalueforcurrentfield" and $tag > "010") {
+                        $globalconditionint.='if ( defined $f'.$tag.'->subfield("'.$subtag.'") ) { for $f'.$tag.$subtag.' ( $f'.$tag.'->subfield("'.$subtag.'") ){'."\n";
+                        $globalconditionend.='}}';
+                    }
+                    elsif ($subtag ne "tempvalueforcurrentfield") {
+                        $globalconditionint.='$f'.$tag.$subtag.' = $f'.$tag.'->data(); '."\n";
+                    }
                 }
             }
         }
@@ -1098,7 +1096,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.002003
+Version 0.002004
 
 =head1 SYNOPSIS
 
@@ -2248,7 +2246,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 VERSION
 
-Version 0.002003
+Version 0.002004
 
 =head1 SYNOPSIS
 
