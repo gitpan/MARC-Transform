@@ -7,13 +7,14 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.002004';
+our $VERSION = '0.003001';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
 my %fields;
 my $globalcondition;
 my $record;
+our $mth;
 my $globalsubs;
 my $verbose=0;
 my @errors;
@@ -21,7 +22,7 @@ my $global_LUT;
 our $this="";
 
 sub new {
-    my ($self,$recordsource,$yaml,$verb) = @_;
+    my ($self,$recordsource,$yaml,$mthsource,$verb) = @_;
     my @yaml;
     no warnings 'redefine';
     no warnings 'newline';
@@ -36,6 +37,8 @@ sub new {
     }
     #warn "================". Data::Dumper::Dumper (\@yaml)."------------------";
     $record=$recordsource;
+    $mth=$mthsource;
+    $$mth{"_defaultLUT_to_mth_"}={} if $mth;
     ReplaceAllInRecord("before");
     $verbose = 1 if ($verb);
     foreach my $rulesub(@yaml)
@@ -52,7 +55,6 @@ sub new {
                 if (ref($$rulesub{'global_LUT'}) eq "HASH")
                 {
                     $global_LUT=$$rulesub{'global_LUT'};
-                    #print Data::Dumper::Dumper ($global_LUT);
                 }
             }
         }
@@ -71,13 +73,13 @@ sub new {
                 }
                 if ( defnonull ( $$rul{'LUT'} ) )
                 {
-                    $$global_LUT{"lookuptableforthis"}=$$rul{'LUT'};
+                    $$global_LUT{"lookuptableforthis"}=$$rul{'LUT'};#warn Data::Dumper::Dumper $global_LUT;
                 }
             }
             foreach my $rul ( @$rule )
             {
-                my ($actionsin, $actionsout)= parseactions($rul);#warn Data::Dumper::Dumper ($rul);
-                my $boolcondition = testrule($rul, $actionsin, $actionsout, $subs);
+                my ($actionsin, $actionsinter, $actionsout)= parseactions($rul);#warn Data::Dumper::Dumper ($rul);
+                my $boolcondition = testrule($rul, $actionsin, $actionsinter, $actionsout, $subs);
                 #warn $boolcondition;warn "actionsin : ".$actionsin;warn "actionsout : ".$actionsout;
                 if ($boolcondition)
                 {
@@ -96,8 +98,8 @@ sub new {
             {
                 $$global_LUT{"lookuptableforthis"}=$$rule{'LUT'};
             }
-            my ($actionsin, $actionsout)= parseactions($rule);
-            my $boolcondition = testrule($rule, $actionsin, $actionsout, $subs);
+            my ($actionsin, $actionsinter, $actionsout)= parseactions($rule);
+            my $boolcondition = testrule($rule, $actionsin, $actionsinter, $actionsout, $subs);
         }
         else
         {
@@ -121,19 +123,26 @@ sub LUT {
         $type = "lookuptableforthis";
     }
     my $outLUT=$inLUT;
+    my $boolnocor = 1;
     if ( ref($global_LUT) eq "HASH")
     {
         if (exists($$global_LUT{$type}))
         {
-            foreach my $globaltype (keys(%$global_LUT))
+            my $correspondance=$$global_LUT{$type};
+            if ( ref($correspondance) eq "HASH")
             {
-                my $correspondance=$$global_LUT{$globaltype};
-                if ( ref($correspondance) eq "HASH")
+                foreach my $cor (keys(%$correspondance))
                 {
-                    foreach my $cor (keys(%$correspondance))
+                    if ($inLUT eq $cor)
                     {
-                        $outLUT=$$correspondance{$cor} if $inLUT eq $cor;
+                        $outLUT=$$correspondance{$cor};
+                        $boolnocor = 0;
                     }
+                }
+                if ($boolnocor)
+                {
+                    $outLUT=$$correspondance{"_default_value_"} if (defnonull($$correspondance{"_default_value_"}));
+                    push (@{$$mth{"_defaultLUT_to_mth_"}->{"$type"}} , $inLUT) if $mth;
                 }
             }
         }
@@ -511,6 +520,7 @@ sub parseactions {
     my $rul = shift;
     my $actionsintemp="";
     my $actionsin="";
+    my $actionsinter="";
     my $actionsouttemp="";
     my $actionsout="";
     #print "\n".Data::Dumper::Dumper $rul;
@@ -523,7 +533,7 @@ sub parseactions {
     if ( defnonull ( $$rul{'duplicatefield'} ) )
     {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'duplicatefield'},'duplicatefield');
-        $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
+        $actionsinter.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
     if ( defnonull ( $$rul{'forceupdate'} ) )
     {
@@ -557,7 +567,7 @@ sub parseactions {
     }
     
     #print "\n----------------------actionsin---------------------- : \n$actionsin\n\n----------------------actionsout---------------------- : \n$actionsout\n----------------------actionsend----------------------";
-    return ($actionsin, $actionsout)
+    return ($actionsin, $actionsinter, $actionsout)
 }
 
 sub parsesubaction {
@@ -862,15 +872,17 @@ sub parsesubaction {
                     #print "$vint\n";
                     if($vint=~/^\$f(\d{3})(\w)$/)
                     {
-                        $actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+                        #$actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+                        $actionsin.=' if ( defined $f'.$1.'->subfield("'.$2.'") ) { if (scalar($f'.$1.'->subfields())==1) { $record->delete_field($f'.$1.'); } else { $f'.$1.'->delete_subfield(code => "'.$2.'"); } }'."\n";
                     }
-                    if($vint=~/^\$f(\d{3})$/)
+                    elsif($vint=~/^\$f(\d{3})$/)
                     {
                         $actionsin.=' $record->delete_field('.$vint.');'."\n";
                     }
                     elsif($vint=~/^f(\d{3})(\w)$/)
                     {
-                        $actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+                        #$actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+                        $actionsout.=' for my $fieldel($record->field("'.$1.'")){if ( defined $fieldel->subfield("'.$2.'") ) { if (scalar($fieldel->subfields())==1) { $record->delete_field($fieldel); } else { $fieldel->delete_subfield(code => "'.$2.'"); } }}'."\n";
                     }
                     elsif($vint=~/^f(\d{3})$/)
                     {
@@ -878,7 +890,8 @@ sub parsesubaction {
                     }
                     elsif($vint=~/^(\w)$/)
                     {
-                        $actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+                        #$actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+                        $actionsin.=' if ( defined $$currentfield->subfield("'.$vint.'") ) { if (scalar($$currentfield->subfields())==1) { $record->delete_field($$currentfield); } else { $$currentfield->delete_subfield(code => "'.$vint.'"); } }'."\n";
                     }
                     else
                     {
@@ -896,15 +909,17 @@ sub parsesubaction {
             my $vint=$intaction;
             if($vint=~/^\$f(\d{3})(\w)$/)
             {
-                $actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+                #$actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+                $actionsin.=' if ( defined $f'.$1.'->subfield("'.$2.'") ) { if (scalar($f'.$1.'->subfields())==1) { $record->delete_field($f'.$1.'); } else { $f'.$1.'->delete_subfield(code => "'.$2.'"); } }'."\n";
             }
-            if($vint=~/^\$f(\d{3})$/)
+            elsif($vint=~/^\$f(\d{3})$/)
             {
                 $actionsin.=' $record->delete_field('.$vint.');'."\n";
             }
             elsif($vint=~/^f(\d{3})(\w)$/)
             {
-                $actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+                #$actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+                $actionsout.=' for my $fieldel($record->field("'.$1.'")){if ( defined $fieldel->subfield("'.$2.'") ) { if (scalar($fieldel->subfields())==1) { $record->delete_field($fieldel); } else { $fieldel->delete_subfield(code => "'.$2.'"); } }}'."\n";
             }
             elsif($vint=~/^f(\d{3})$/)
             {
@@ -912,7 +927,8 @@ sub parsesubaction {
             }
             elsif($vint=~/^(\w)$/)
             {
-                $actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+                #$actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+                $actionsin.=' if ( defined $$currentfield->subfield("'.$vint.'") ) { if (scalar($$currentfield->subfields())==1) { $record->delete_field($$currentfield); } else { $$currentfield->delete_subfield(code => "'.$vint.'"); } }'."\n";
             }
             else
             {
@@ -964,10 +980,10 @@ sub parsesubaction {
 }
 
 sub testrule {
-    my ($rul, $actionsin, $actionsout, $subs) = @_;
+    my ($rul, $actionsin, $actionsinter, $actionsout, $subs) = @_;
     $globalcondition="";
     $subs="no warnings 'redefine';".$subs if $subs ne "";
-    my $globalconditionstart='{ '."\n".$subs."\n".' my $boolcond=0;my $currentfield;no warnings \'uninitialized\';';
+    my $globalconditionstart='{ '."\n".$subs."\n".' my $boolcond=0;my $boolcondint=0;my $currentfield;no warnings \'substr\';no warnings \'uninitialized\';';
     my $globalconditionint="";
     my $globalconditionend="";#print Data::Dumper::Dumper ($rul);
     
@@ -1016,8 +1032,6 @@ sub testrule {
             if ( defined $record->field($tag) )
             {
                 $globalconditionint.='for $f'.$tag.' ( $record->field("'.$tag.'") ) { $currentfield=\$f'.$tag.';'."\n";
-                $globalconditionend.='}';
-                
                 foreach my $subtag (@tag_listtagunique)
                 {
                     if ($subtag ne "tempvalueforcurrentfield" and $tag > "010") {
@@ -1028,9 +1042,10 @@ sub testrule {
                         $globalconditionint.='$f'.$tag.$subtag.' = $f'.$tag.'->data(); '."\n";
                     }
                 }
+                $globalconditionend.="\n".'if ($boolcondint){ eval{'.$actionsinter.'};}}';
             }
         }
-        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1; eval{'.$actionsin.'}}';
+        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}';
         $globalconditionend.="\n".' if ($boolcond){eval{'.$actionsout.'}}'."\n".' return $boolcond;}';
         $globalcondition=$globalconditionstart.$globalconditionint.$globalconditionend;
         print "\n--------globalcondition----------\n$globalcondition\n---------globalcondition---------\n" if $verbose;
@@ -1038,7 +1053,9 @@ sub testrule {
     }
     else
     {
-        eval($actionsout);
+        print "\n--------actionsout----------\n$globalconditionstart$actionsout}\n---------actionsout---------\n" if $verbose;
+        eval($globalconditionstart.$actionsout.'}');
+        #eval($actionsout);
         return 1;
     }
     return 1;
@@ -1055,7 +1072,7 @@ sub ReplaceAllInRecord {
                 my $newval=$$subfield[1];
                 if ($pos eq "before")
                 {
-                    #$newval=~s/\$/#_dollarsd_#/g;to force warn
+                    #$newval=~s/\$/#_dollarsd_#/g;#to force warn
                     $newval=~s/\$/#_dollars_#/g;
                     $newval=~s/"/#_dbquote_#/g;
                 }
@@ -1096,7 +1113,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.002004
+Version 0.003001
 
 =head1 SYNOPSIS
 
@@ -1172,16 +1189,27 @@ MARC::Transform use MARC::Record.
 
     $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-This is the only method you'll use. It takes a MARC::Record and a YAML path as arguments. You can also define your YAML into a variable and use it to transform the record like this : 
+This is the only method you'll use. It takes a MARC::Record object and a YAML path as arguments. You can also define your YAML into a variable and use it to transform the record like this : 
 
     my $yaml="delete : f501d\n";
     $record = MARC::Transform->new ( $record, $yaml );
 
+=head3 Optional hash reference
+
+As we will see in more detail below, it is possible to add a hash reference (named $mth into yaml) as the third optional argument.
+
+    my $record = MARC::Record->new(); my $hashref = {'var' => 'foo'};
+    my $yaml = 'create :
+     f500a : $$mth{"var"}
+    ';
+    $record = MARC::Transform->new($record,$yaml,$hashref);
+    #the new 500$a subfield's value is "foo"
+
 =head3 Verbose mode
 
-Each YAML rule (see basis below to understand what is a rule) generates a script that is evaluated, in the record, for each field and subfield specified in the condition (If there is a condition). By adding an argument B<1> to the method, it displays the generated script. This can be useful to understand what is happening:
+Each YAML rule (see basis below to understand what is a rule) generates a script that is evaluated, in the record, for each field and subfield specified in the condition (If there is a condition). By adding a fourth optional argument B<1> to the method, it displays the generated script. This can be useful to understand what is happening:
 
-    $record = MARC::Transform->new($record,"/path/conf.yaml",1);
+    $record = MARC::Transform->new($record,"/path/conf.yaml",0,1);
 
 =head1 YAML
 
@@ -1237,7 +1265,7 @@ For example, this means, that if we have more '501' fields in the record, if our
 
 =back
 
-- B<Each rule can be divided into sub-rules> (separated by - ) similar to 'if,elsif' or 'switch,case' scripts. If the first sub-rule's condition is true, other sub-rules will not be read.
+- B<Each rule can be divided into sub-rules> (separated by - ) similar to 'if,elsif' or 'switch,case' scripts. If the first sub-rule's condition is false, the following sub-rule's condition is tested. When the sub-rule's condition is true (or if a sub-rule has no condition), the following sub-rules are not read.
 
     ---
     -
@@ -1269,8 +1297,25 @@ For example, this means, that if we have more '501' fields in the record, if our
     delete :
      - f501b
      - f501c
-     
-- it is strongly recommended to test each rule on a test record before using it on a large batch of records.
+
+=head3 a small script to test your rules
+
+- B<it is strongly recommended to test each rule on a test record before using it on a large batch of records>. You can create a script (e.g. C<< test.pl >>) with the contents below (that you will adapt to test your rules) and run it with C<< perl ./test.pl >> :
+
+    #!/usr/bin/perl
+    use MARC::Transform;
+    my $record = MARC::Record->new();
+    $record->leader('optionnal leader');
+    $record->insert_fields_ordered( MARC::Field->new('005', 'controlfield_content'));
+    $record->insert_fields_ordered( MARC::Field->new('501', '', '', 'a' => 'foo', 'b' => 'bar') );
+    print "\n--init record--\n". $record->as_formatted ."\n";
+    my $yaml='---
+    condition : $f501a eq "foo"
+    create :
+     f502a : condition is true
+    ';
+    $record = MARC::Transform->new($record,$yaml);
+    print "\n--transformed record--\n". $record->as_formatted ."\n";
 
 =head2 Field's and subfield's naming convention
 
@@ -1332,8 +1377,9 @@ For example, if you test $f501a value's in condition:
 
 - this will create a new '701' field with a 'c' subfield containing '501$a' subfield's value defined in the condition:
 
+    condition : defined $f501a
     create :
-     f701a : $f501a
+     f701c : $f501a
 
 B<WARNING>: To get B<subfield's value of> the condition's fields, these subfields must be defined in the condition:
 
@@ -1394,7 +1440,7 @@ B<WARNING>: To get B<subfield's value of> the condition's fields, these subfield
      f502a : this is the subfield's value of a new 502 field
      f502b : 
       - this is the first 'b' value of another new 502
-      - this is the 2nd 'b' value of another new 502
+      - this is the 2nd 'b' value of this another new 502
      f600 :
       a : 
        - first 'a' subfield of this new 600 field
@@ -1415,7 +1461,7 @@ result (with C<< $record->as_formatted >>):
            _cbar
            _bnew subfield's value on the condition's field
     502    _bthis is the first 'b' value of another new 502
-           _bthis is the 2nd 'b' value of another new 502
+           _bthis is the 2nd 'b' value of this another new 502
     502    _athis is the subfield's value of a new 502 field
     600    _afirst 'a' subfield of this new 600 field
            _asecond 'a' subfield of this new 600 field
@@ -1685,12 +1731,16 @@ result (with C<< $record->as_formatted >>):
 =item * Example:
 
     ---
+    condition : $f008_ eq "controlfield_contentb"
+    duplicatefield : $f008 > f007
+    ---
     condition : $f501a eq "bar"
     duplicatefield : $f501 > f400
     ---
     condition : $f501a eq "foo"
     duplicatefield : 
-     - $f501 > f401
+     - f501 > f401
+     - $f501 > f402
      - f005 > f006
 
 result (with C<< $record->as_formatted >>):
@@ -1699,6 +1749,8 @@ result (with C<< $record->as_formatted >>):
     LDR                         
     005     controlfield_content2
     005     controlfield_content1
+    008     controlfield_contentb
+    008     controlfield_contenta
     501    _afoo
     501 12 _abar
            _bbb1
@@ -1709,10 +1761,17 @@ result (with C<< $record->as_formatted >>):
     005     controlfield_content1
     006     controlfield_content1
     006     controlfield_content2
+    007     controlfield_contentb
+    008     controlfield_contentb
+    008     controlfield_contenta
     400 12 _abar
            _bbb1
            _bbb2
+    401 12 _abar
+           _bbb1
+           _bbb2
     401    _afoo
+    402    _afoo
     501    _afoo
     501 12 _abar
            _bbb1
@@ -1724,7 +1783,7 @@ result (with C<< $record->as_formatted >>):
 
 =over 4
 
-=item * This action allows you to to define Perl code that will be eval.
+=item * This action allows you to to define Perl code that will be run with C<< eval >>
 
 You can run functions written directly in the YAML ( for details on writing perl subs in the YAML, refer to next chapter: Use Perl functions and LookUp Tables ).
 
@@ -1765,11 +1824,11 @@ result (in stderr):
 
 You can use Perl functions (B<subs>) and lookup tables (B<LUT>) to define with greater flexibility values that will be created or updated by the actions: create, forceupdate, forceupdatefirst, update and updatefirst.
 
-These functions can be B<written in a rule> (in this case they can be used only by this rule) B<or after the last rule> ( after the last ---, can be used in all rules: B<global_subs> and B<global_LUT> ).
+These functions (and lookup tables) can be B<written in a rule> (in this case they can be used only by this rule) B<or after the last rule> ( after the last ---, can be used in all rules: B<global_subs> and B<global_LUT> ).
 
 =head3 Variables
 
-Three types of variables can be used:
+Four types of variables can be used:
 
 =head4 $this, and condition's elements
 
@@ -1806,6 +1865,54 @@ result (with C<< $record->as_formatted >>):
            _bbee
            _d this 501d value's is doo
            _cfee
+
+=back
+
+=head4 $mth
+
+B<$mth> is the optional hashref add as third optional argument. It can be used in writing (into subs and global_subs) and reading. This allows to interact with the script that calls MARC::Transform.
+
+=over 4
+
+=item * Syntaxe: B<$$mth{foo}>
+
+=item * Example in a perl script :
+
+    my $record = MARC::Record->new();
+    $record->leader('optionnal leader');
+    print "--init record--\n". $record->as_formatted;
+    my %mth;
+    $mth{"inc"}=1;
+    $mth{"var"}="a string";
+    my $yaml = '
+    ---
+    condition : $$mth{"var"} eq "a string"
+    forceupdate :
+     f500a : $$mth{"var"}
+    ---
+    -
+     execute : \&testa()
+    -
+     subs: >
+        sub testa { $$mth{"inc"}++; }
+    ---
+    forceupdate :
+     f600a : \&testb()
+    ---
+    global_subs: >
+        sub testb { $$mth{"inc"}++;$$mth{"inc"}; }
+    ';
+    $record = MARC::Transform->new($record,$yaml,\%mth);
+    print "\n--transformed record-- ".$mth{"inc"}." : \n". $record->as_formatted ."\n";
+
+result :
+
+    --init record--
+    LDR optionnal leader
+    --transformed record-- 3 : 
+    LDR optionnal leader
+    500    _aa string
+    600    _a3
 
 =back
 
@@ -1938,7 +2045,7 @@ result (with C<< $record->as_formatted >> ):
 
 =head3 LUT
 
-If a value has no match in a LookUp Table, it isn't modified.
+If a value has no match in a LookUp Table, it isn't modified. (unless you have defined a default value with C<< _default_value_ >> ).
 
 If you want to use more than one LookUp Table in a rule, you must use a global_LUT because it differentiates tables with titles.
 
@@ -1956,6 +2063,7 @@ If you want to use more than one LookUp Table in a rule, you must use a global_L
      LUT :
        <starting value> : <final value>
        <starting value> : <final value>
+       _default_value_ : optionnal default value
     ---
     
     # LUT invokation syntax:
@@ -2001,6 +2109,7 @@ result (with C<< $record->as_formatted >> ):
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
+      _default_value_ : valeur par défaut optionnelle
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
@@ -2021,6 +2130,7 @@ result (with C<< $record->as_formatted >> ):
       NY : New York
       SF : San Fransisco
       TK : Tokyo
+      _default_value_ : unknown city
      numbers:
       1 : one
       2 : two
@@ -2030,13 +2140,50 @@ result (with C<< $record->as_formatted >> ):
     --init record--
     LDR                         
     501    _a1
+           _a3
            _bfoo
            _cSF
     --transformed record--
     LDR                         
     501    _aone
-           _bfoo
+           _a3
+           _bunknown city
            _cSan Fransisco
+
+=back
+
+=head4 $$mth{"_defaultLUT_to_mth_"}
+
+=over 4
+
+=item *  B<Note: >if you call MARC::Transform with the third parameter, the module filled its key named C<< _defaultLUT_to_mth_ >> in case you want to keep, in the calling script, track of the values and types (named C<< lookuptableforthis >> for non-global's LUT) unmatched. C<< $$mth{"_defaultLUT_to_mth_"} >> is cleared each time MARC::Transform->new is called.
+
+=item * If we recall the above example with :
+
+    my %mth;
+    $record = MARC::Transform->new($record,$yaml,\%mth);
+    print $mth{"_defaultLUT_to_mth_"}->{"cities"}[0];
+    print "\n".Data::Dumper::Dumper $mth{"_defaultLUT_to_mth_"};
+    
+will return in stdout :
+
+    foo
+    $VAR1 = {
+              'numbers' => [
+                             '3'
+                           ],
+              'cities' => [
+                            'foo'
+                          ]
+            };
+
+try this if you want to get the content of $mth{"_defaultLUT_to_mth_"} instead of the line containing Data::Dumper::Dumper :
+
+    foreach my $k (keys(%{$mth{"_defaultLUT_to_mth_"}}))
+    {
+        foreach my $value(@{$mth{"_defaultLUT_to_mth_"}->{"$k"}})
+        { print "$k : $value \n"; }
+    }
 
 =back
 
@@ -2067,7 +2214,10 @@ In YAML, these characters are interpreted differently. To use them in string con
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
 
-=item * Example: feel free to copy the examples in this documentation. Be aware that I have added four space characters at the beginning of each line to make them better displayed by the POD interpreter. If you copy / paste them into your YAML configuration file, Be sure to remove the first four characters of each line (e.g. with vim, C<:%s/^\s\s\s\s//g> ).
+=item * Example: feel free to copy the examples in this documentation. Be aware that I have added four space characters at the beginning of each exemple's line to make them better displayed by the POD interpreter. If you copy / paste them into your YAML configuration file, Be sure to remove the first four characters of each line (e.g. with vim, C<:%s/^\s\s\s\s//g> ). 
+
+=item * 
+This yaml was called like this: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
 
     ---
     condition : $f501a eq "foo"
@@ -2081,6 +2231,7 @@ In YAML, these characters are interpreted differently. To use them in string con
       a : 
        - first a subfield of this new 600 field
        - second a subfield of this new 600 field
+       - $$mth{"var"}
       b : the 600b value
     execute : \&reencodeRecordtoUtf8()
     ---
@@ -2197,7 +2348,8 @@ result (with C<< $record->as_formatted >> ) :
            _bmandatory b in condition's field
     504    _aupdated value of all 504a if exists
            _aupdated value of all 504a if exists
-    600    _afirst a subfield of this new 600 field
+    600    _aa string
+           _afirst a subfield of this new 600 field
            _asecond a subfield of this new 600 field
            _bthe 600b value
     602 1  _aa402a1
@@ -2233,22 +2385,22 @@ Stephane Delaune, (delaune.stephane at gmail.com)
 
 =head1 COPYRIGHT
 
-Copyright 2011 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2012 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 =head1 ===========> DOCUMENTATION FRANCAISE
 
-=head1 NOM
+=head1 - NOM
 
 MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un fichier de configuration YAML
 
-=head1 VERSION
+=head1 - VERSION
 
-Version 0.002004
+Version 0.003001
 
-=head1 SYNOPSIS
+=head1 - SYNOPSIS
 
 B<Perl script:>
 
@@ -2306,7 +2458,7 @@ B<Résultat> (avec C<< $record->as_formatted >>):
            _bfirst
     502    _aNew 502a subfield's value
 
-=head1 DESCRIPTION
+=head1 - DESCRIPTION
 
 C'est un module Perl pour transformer une notice MARC en utilisant un fichier de configuration YAML.
 
@@ -2316,26 +2468,37 @@ Toutes les conditions, actions, fonctions et tables de correspondance sont B<déf
 
 MARC::Transform utilise MARC::Record.
 
-=head1 METHODE
+=head1 - METHODE
 
-=head2 new()
+=head2 - new()
 
     $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-C'est la seule méthode que vous utiliserez. Elle prend un MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi écrire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
+C'est la seule méthode que vous utiliserez. Elle prend un objet MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi écrire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
 
     my $yaml="delete : f501d\n";
     $record = MARC::Transform->new ( $record, $yaml );
 
-=head3 Verbose mode
+=head3 - Référence à un hash optionnelle
 
-Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règle) génère un script qui est évalué, dans la notice, pour chaque champ et sous-champ spécifié dans la condition (si il y a une condition). En ajoutant un argument B<1> à la méthode, elle affiche le script généré. Cela peut être utile pour comprendre ce qu'il se passe:
+Comme nous allons le voir plus en détail plus bas, il est possible d'ajouter comme troisième argument une référence à un hash (nommé $mth dans le yaml).
 
-    $record = MARC::Transform->new($record,"/path/conf.yaml",1);
+    my $record = MARC::Record->new(); my $hashref = {'var' => 'foo'};
+    my $yaml = 'create :
+     f500a : $$mth{"var"}
+    ';
+    $record = MARC::Transform->new($record,$yaml,$hashref);
+    #la valeur du nouveau sous-champ 500$a est "foo"
 
-=head1 YAML
+=head3 - Mode verbeux
 
-=head2 Bases
+Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règle) génère un script qui est évalué, dans la notice, pour chaque champ et sous-champ spécifié dans la condition (si il y a une condition). En ajoutant un quatrième argument optionnel B<1> à la méthode, elle affiche le script généré. Cela peut être utile pour comprendre ce qu'il se passe:
+
+    $record = MARC::Transform->new($record,"/path/conf.yaml",0,1);
+
+=head1 - YAML
+
+=head2 - Bases
 
 - B<Le YAML est divisé en règle> (séparées par --- ), chaque règle est exécutée l'une après l'autre, les règles sans condition sont toujours exécutées:
 
@@ -2350,7 +2513,7 @@ Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règl
 - B<les conditions sont écrites en perl>, ce qui permet une grande flexibilité. Elles doivent être définies avec C<condition : >
 
     condition : ($f501a=~/foo/ and $f503a=~/bar/) or ($f102a eq "bib")
-    # si un 501$a et un 503$a valent foo et bar, ou si un 102$a = bib
+    # si un 501$a et un 503$a contiennent foo et bar, ou si un 102$a = bib
 
 - Les conditions testent les notices B<champ par champ> (uniquement sur les champs définis dans la condition)
 
@@ -2387,7 +2550,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =back
 
-- B<Chaque règle peut être divisée en sous-règles> (séparées par - ) similaires à un 'if,elsif' ou un script 'switch,case'. Si la condition de la première sous-règle est vrai, les autres sous-règles ne seront pas lues.
+- B<Chaque règle peut être divisée en sous-règles> (séparées par - ) similaires à un 'if,elsif' ou un script 'switch,case'. Si la condition de la première sous-règle est fausse, la condition de la sous-règle suivante est testée. Lorsque la condition d'une sous-règle est vraie (ou si un sous-règle n'a pas de condition), les sous-règles suivantes ne sont pas lues.
 
     ---
     -
@@ -2419,24 +2582,41 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
     delete :
      - f501b
      - f501c
-     
-- Il est fortement recommendé de tester chaque règle sur une notice de test avant de l'utiliser sur un large lot de notices.
 
-=head2 Convention de nommage des champs et des sous-champs
+=head3 - un petit script pour tester vos règles
 
-=head3 Dans les actions
+- B<Il est fortement recommendé de tester chaque règle sur une notice de test avant de l'utiliser sur un large lot de notices>. Vous pouvez créer un script (par exemple C<< test.pl >>) avec le contenu ci-dessous (que vous adapterez pour tester vos règles) et le lancer avec C<< perl ./test.pl >> :
+
+    #!/usr/bin/perl
+    use MARC::Transform;
+    my $record = MARC::Record->new();
+    $record->leader('optionnal leader');
+    $record->insert_fields_ordered( MARC::Field->new('005', 'controlfield_content'));
+    $record->insert_fields_ordered( MARC::Field->new('501', '', '', 'a' => 'foo', 'b' => 'bar') );
+    print "\n--init record--\n". $record->as_formatted ."\n";
+    my $yaml='---
+    condition : $f501a eq "foo"
+    create :
+     f502a : condition is true
+    ';
+    $record = MARC::Transform->new($record,$yaml);
+    print "\n--transformed record--\n". $record->as_formatted ."\n";
+
+=head2 - Convention de nommage des champs et des sous-champs
+
+=head3 - Dans les actions
 
 - Les noms des champs et des sous-champs sont très importants: 
 
 =over 4
 
-=item * Ils doivent commencer par la lettre B<f> suivi des B<3 chiffres> du nom du champ (par exemple f099), suivi, pour les sous-champ, par leur B<lettre ou chiffre> (par exemple B<f501b>).
+=item * Ils doivent commencer par la lettre B<f> suivi des B<3 chiffres> du nom du champ (par exemple f099), suivi, pour les sous-champs, par leur B<lettre ou chiffre> (par exemple B<f501b>).
 
 =item * Les noms des champs de contrôle commencent par la lettre B<f> suivi par B<3 chiffres inférieur à 010> suivi par B<underscore> (par exemple B<f005_>). 
 
 =item * B<Les indicateurs> doivent commencer par la lettre B<i>, suivi des B<3 chiffres> du nom du champ suivi par la position de l'indicateur(B<1 or 2>) (par exemple B<i0991>).
 
-=item * Dans les actions, vous pouvez définir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se réfère au champ de la condition (si nous n'avons défini qu'un champ à tester dans la condition), ou au champ en cours de traitement dans l'action:
+=item * Dans les actions, vous pouvez définir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se réfère au champ de la condition (si nous n'avons défini qu'un seul champ à tester dans la condition), ou au champ en cours de traitement dans l'action:
 
     ---
     condition : $f501a eq "foo"
@@ -2449,7 +2629,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =back
 
-=head3 Dans les conditions
+=head3 - Dans les conditions
 
 =over 4
 
@@ -2464,13 +2644,13 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =back
 
-=head3 Lancer des actions uniquement sur les champs de la condition
+=head3 - Lancer des actions uniquement sur les champs de la condition
 
 Nous avons déjà vu que pour se référer au champ de la condition dans les actions, il est possible de définir les sous-champs directement. Cela fonctionne uniquement si nous avons définis seulement un champ à tester dans la condition. Si nous avons plus d'un champ dans la condition, pour s'y référer, leurs B<noms doivent aussi commencer par $> (cela fonctionne également avec un champ unique dans la condition).
 
 Par exemple, si vous testez la valeur du $f501a dans la condition:
 
-- cela va supprimer le sous-champ 'c' uniquement dans le champ '501' qui est vrai dans la condition:
+- cela va supprimer les sous-champs 'c' uniquement dans le champ '501' qui est vrai dans la condition:
 
     condition : $f501a eq "foo" and defined $f501b
     delete : $f501c
@@ -2482,8 +2662,9 @@ Par exemple, si vous testez la valeur du $f501a dans la condition:
 
 - cela va créer un nouveau champ '701' avec un sous-champ 'c' contenant la valeur du sous-champ 501$a défini dans la condition:
 
+    condition : defined $f501a
     create :
-     f701a : $f501a
+     f701c : $f501a
 
 B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition, ces sous-champs doivent être définis dans la condition:
 
@@ -2507,9 +2688,9 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
     # Si il y a de multiples champs '501', seuls ceux ayant un
     # sous-champ 'a'='foo' auront un nouveau sous-champ 'c' créé
 
-=head2 Actions
+=head2 - Actions
 
-=head3 create
+=head3 - create
 
 =over 4
 
@@ -2544,7 +2725,7 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
      f502a : this is the subfield's value of a new 502 field
      f502b : 
       - this is the first 'b' value of another new 502
-      - this is the 2nd 'b' value of another new 502
+      - this is the 2nd 'b' value of this another new 502
      f600 :
       a : 
        - first 'a' subfield of this new 600 field
@@ -2565,7 +2746,7 @@ résultat (avec C<< $record->as_formatted >>):
            _cbar
            _bnew subfield's value on the condition's field
     502    _bthis is the first 'b' value of another new 502
-           _bthis is the 2nd 'b' value of another new 502
+           _bthis is the 2nd 'b' value of this another new 502
     502    _athis is the subfield's value of a new 502 field
     600    _afirst 'a' subfield of this new 600 field
            _asecond 'a' subfield of this new 600 field
@@ -2580,7 +2761,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 update
+=head3 - update
 
 =over 4
 
@@ -2642,13 +2823,13 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 updatefirst
+=head3 - updatefirst
 
 =over 4
 
 =item * Cette action est B<identique à update>, excepté qu'elle met à jour seulement le B<premier> sous-champ des champs spécifiés
 
-=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe d'update>
+=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2692,7 +2873,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 forceupdate et forceupdatefirst
+=head3 - forceupdate et forceupdatefirst
 
 =over 4
 
@@ -2700,7 +2881,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =item * Si le B<sous-champ spécifié n'existe pas>: ces actions sont identiques à l'action B<create>
 
-=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe d'update>
+=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2763,7 +2944,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 delete
+=head3 - delete
 
 =over 4
 
@@ -2816,7 +2997,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 duplicatefield
+=head3 - duplicatefield
 
 =over 4
 
@@ -2835,12 +3016,16 @@ résultat (avec C<< $record->as_formatted >>):
 =item * Exemple:
 
     ---
+    condition : $f008_ eq "controlfield_contentb"
+    duplicatefield : $f008 > f007
+    ---
     condition : $f501a eq "bar"
     duplicatefield : $f501 > f400
     ---
     condition : $f501a eq "foo"
     duplicatefield : 
-     - $f501 > f401
+     - f501 > f401
+     - $f501 > f402
      - f005 > f006
 
 résultat (avec C<< $record->as_formatted >>):
@@ -2849,6 +3034,8 @@ résultat (avec C<< $record->as_formatted >>):
     LDR                         
     005     controlfield_content2
     005     controlfield_content1
+    008     controlfield_contentb
+    008     controlfield_contenta
     501    _afoo
     501 12 _abar
            _bbb1
@@ -2859,10 +3046,17 @@ résultat (avec C<< $record->as_formatted >>):
     005     controlfield_content1
     006     controlfield_content1
     006     controlfield_content2
+    007     controlfield_contentb
+    008     controlfield_contentb
+    008     controlfield_contenta
     400 12 _abar
            _bbb1
            _bbb2
+    401 12 _abar
+           _bbb1
+           _bbb2
     401    _afoo
+    402    _afoo
     501    _afoo
     501 12 _abar
            _bbb1
@@ -2870,11 +3064,11 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head3 execute
+=head3 - execute
 
 =over 4
 
-=item * Cette action vous permet de définir du code Perl qui sera eval.
+=item * Cette action vous permet de définir du code Perl qui sera exécuté avec C<< eval >>
 
 Vous pouvez executer des fonctions écrites directement dans le YAML ( pour des détails sur l'écriture de subs perl dans le YAML, référez vous au chapitre suivant: Utiliser des fonctions Perl et des tables des correspondance)
 
@@ -2911,17 +3105,17 @@ résultat (dans stderr):
 
 =back
 
-=head2 Utiliser des fonctions Perl et des tables des correspondance
+=head2 - Utiliser des fonctions Perl et des tables des correspondance
 
 Vous pouvez utiliser des fonctions Perl (B<subs>) et des tables de correspondance (B<LUT> pour LookUp Tables) pour définir avec une plus grande flexibilité les valeurs qui vont être créées ou mises à jour avec les actions: create, forceupdate, forceupdatefirst, update and updatefirst.
 
-Ces fonctions peuvent être B<écrites dans une règle> (dans ce cas elles ne peuvent être utilisée que par cette règle) B<ou après la dernière règle> ( après le dernier ---, peuvent être utilisées dans toutes les règles: B<global_subs> et B<global_LUT> ).
+Ces fonctions (et tables des correspondance) peuvent être B<écrites dans une règle> (dans ce cas elles ne peuvent être utilisée que par cette règle) B<ou après la dernière règle> ( après le dernier ---, elles peuvent alors être utilisées dans toutes les règles: B<global_subs> et B<global_LUT> ).
 
-=head3 Variables
+=head3 - Variables
 
-Trois types de variables peuvent être utilisés:
+Quatre types de variables peuvent être utilisés:
 
-=head4 $this, et les éléments de la condition
+=head4 - $this, et les éléments de la condition
 
 =over 4
 
@@ -2959,13 +3153,61 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head4 $record
+=head4 - $mth
 
-B<$record> est l'actuel objet MARC::Record.
+B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisable en écriture (dans les subs et les global_subs) et en lecture. Cela permet d'intéragir avec le script qui appelle MARC::Transform.
 
-=head3 subs
+=over 4
 
-=head4 A l'intérieur des règles
+=item * Syntaxe: B<$$mth{foo}>
+
+=item * Exemple dans un script perl :
+
+    my $record = MARC::Record->new();
+    $record->leader('optionnal leader');
+    print "--init record--\n". $record->as_formatted;
+    my %mth;
+    $mth{"inc"}=1;
+    $mth{"var"}="a string";
+    my $yaml = '
+    ---
+    condition : $$mth{"var"} eq "a string"
+    forceupdate :
+     f500a : $$mth{"var"}
+    ---
+    -
+     execute : \&testa()
+    -
+     subs: >
+        sub testa { $$mth{"inc"}++; }
+    ---
+    forceupdate :
+     f600a : \&testb()
+    ---
+    global_subs: >
+        sub testb { $$mth{"inc"}++;$$mth{"inc"}; }
+    ';
+    $record = MARC::Transform->new($record,$yaml,\%mth);
+    print "\n--transformed record-- ".$mth{"inc"}." : \n". $record->as_formatted ."\n";
+
+résultat :
+
+    --init record--
+    LDR optionnal leader
+    --transformed record-- 3 : 
+    LDR optionnal leader
+    500    _aa string
+    600    _a3
+
+=back
+
+=head4 - $record
+
+B<$record> est l'objet MARC::Record en cours de traitement.
+
+=head3 - subs
+
+=head4 - A l'intérieur des règles
 
 =over 4
 
@@ -3038,7 +3280,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =back
 
-=head4 global_subs
+=head4 - global_subs
 
 =over 4
 
@@ -3086,13 +3328,13 @@ résultat (avec C<< $record->as_formatted >> ):
 
 =back
 
-=head3 LUT
+=head3 - LUT
 
-Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiée.
+Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiée (à moins que vous n'ayez définit une valeur par défaut avec C<< _default_value_ >> ).
 
 Si vous voulez utiliser plus d'une table de correspondance dans une règle, vous devez utiliser une global_LUT car elle différencie les tables avec des titres.
 
-=head4 A l'intérieur des règles
+=head4 - A l'intérieur des règles
 
 =over 4
 
@@ -3106,6 +3348,7 @@ Si vous voulez utiliser plus d'une table de correspondance dans une règle, vous 
      LUT :
        <valeur de départ> : <valeur finale>
        <valeur de départ> : <valeur finale>
+       _default_value_ : valeur par défaut optionnelle
     ---
     
     # syntaxe d'invocation de la LUT:
@@ -3140,7 +3383,7 @@ résultat (avec C<< $record->as_formatted >> ):
 
 =back
 
-=head4 global_LUT
+=head4 - global_LUT
 
 =over 4
 
@@ -3151,6 +3394,7 @@ résultat (avec C<< $record->as_formatted >> ):
      <titre de la LUT> :
       <valeur de départ> : <valeur finale>
       <valeur de départ> : <valeur finale>
+      _default_value_ : valeur par défaut optionnelle
      <titre de la LUT> :
       <valeur de départ> : <valeur finale>
       <valeur de départ> : <valeur finale>
@@ -3171,6 +3415,7 @@ résultat (avec C<< $record->as_formatted >> ):
       NY : New York
       SF : San Fransisco
       TK : Tokyo
+      _default_value_ : unknown city
      numbers:
       1 : one
       2 : two
@@ -3180,21 +3425,58 @@ résultat (avec C<< $record->as_formatted >> ):
     --notice d'origine--
     LDR                         
     501    _a1
+           _a3
            _bfoo
            _cSF
     --notice transformée--
     LDR                         
     501    _aone
-           _bfoo
+           _a3
+           _bunknown city
            _cSan Fransisco
 
 =back
 
-=head1 Dernières astuces et un gros exemple de YAML
+=head4 - $$mth{"_defaultLUT_to_mth_"}
 
 =over 4
 
-=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple à fixer. Si vous avez défini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
+=item *  B<NB : >si vous appelez MARC::Transform avec le troisième paramètre, le module en rempli la clé nommée C<< _defaultLUT_to_mth_ >> au cas où vous souhaiteriez conserver, dans le script d'appel, une trace des valeurs et types (nommé C<< lookuptableforthis >> pour les LUT non globales) sans correspondance. C<< $$mth{"_defaultLUT_to_mth_"} >> est vidée à chaque fois que MARC::Transform->new est appelé.
+
+=item * Si nous rappellons l'exemple ci-dessus avec :
+
+    my %mth;
+    $record = MARC::Transform->new($record,$yaml,\%mth);
+    print $mth{"_defaultLUT_to_mth_"}->{"cities"}[0];
+    print "\n".Data::Dumper::Dumper $mth{"_defaultLUT_to_mth_"};
+    
+cela renverra sur la sortie standard :
+
+    foo
+    $VAR1 = {
+              'numbers' => [
+                             '3'
+                           ],
+              'cities' => [
+                            'foo'
+                          ]
+            };
+
+essayez ceci si vous souhaitez récupérer le contenu de $mth{"_defaultLUT_to_mth_"} à la place de la ligne contenant Data::Dumper::Dumper :
+
+    foreach my $k (keys(%{$mth{"_defaultLUT_to_mth_"}}))
+    {
+        foreach my $value(@{$mth{"_defaultLUT_to_mth_"}->{"$k"}})
+        { print "$k : $value \n"; }
+    }
+
+=back
+
+=head1 - Dernières astuces et un gros exemple de YAML
+
+=over 4
+
+=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple à corriger. Si vous avez défini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
 
 =item * Restriction: le cas spécifique des guillemets doubles (") et du symbole dollar ($): 
 
@@ -3217,7 +3499,9 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser da
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
 
-=item * Exemple: n'hésitez pas à copier les exemples de cette documentation. Faite attention car j'ai ajouté quatre caractères espace au début de chaque ligne pour qu'elles soient mieux affichées par l'interpréteur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractères de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ).
+=item * Exemple: n'hésitez pas à copier les exemples de cette documentation. Faite attention car j'ai ajouté quatre caractères espace au début de chaque ligne des exemples pour qu'ils soient mieux affichés par l'interpréteur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractères de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
+
+=item * Ce yaml a été appellé comme ceci: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
 
     ---
     condition : $f501a eq "foo"
@@ -3231,6 +3515,7 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser da
       a : 
        - first a subfield of this new 600 field
        - second a subfield of this new 600 field
+       - $$mth{"var"}
       b : the 600b value
     execute : \&reencodeRecordtoUtf8()
     ---
@@ -3347,7 +3632,8 @@ résultat (avec C<< $record->as_formatted >> ) :
            _bmandatory b in condition's field
     504    _aupdated value of all 504a if exists
            _aupdated value of all 504a if exists
-    600    _afirst a subfield of this new 600 field
+    600    _aa string
+           _afirst a subfield of this new 600 field
            _asecond a subfield of this new 600 field
            _bthe 600b value
     602 1  _aa402a1
@@ -3361,7 +3647,7 @@ résultat (avec C<< $record->as_formatted >> ) :
 
 =back
 
-=head1 VOIR AUSSI
+=head1 - VOIR AUSSI
 
 =over 4
 
@@ -3377,13 +3663,13 @@ The definitive source for all things MARC.
 
 =back
 
-=head1 AUTEUR
+=head1 - AUTEUR
 
 Stéphane Delaune, (delaune.stephane at gmail.com)
 
-=head1 COPYRIGHT
+=head1 - COPYRIGHT
 
-Copyright 2011 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2012 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

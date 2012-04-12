@@ -5,7 +5,6 @@ WriteMakefile
           'NAME' => 'MARC::Transform',
           'VERSION_FROM' => 'lib/MARC/Transform.pm',
           'PREREQ_PM' => {
-                           'Data::Compare' => 0,
                            'MARC::Record' => '0',
                            'Scalar::Util' => '0',
                            'Test::More' => 0,

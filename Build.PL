@@ -16,7 +16,6 @@ my $builder = Module::Build->new(
     >}
     , build_requires => {qw<
 	Test::More 0
-	Data::Compare 0
 	YAML 0
     >}
 );
