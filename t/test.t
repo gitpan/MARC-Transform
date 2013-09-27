@@ -716,3 +716,96 @@ $record24 = MARC::Transform->new($record24,$yaml24,\%mth24);
 my $v24a=recordtostring($record24);
 my $v24b="optionnal leader||||500:  |a:a string||600:  |a:5";
 is( $v24a, $v24b, "" );
+
+#test 25
+my $record25 = MARC::Record->new();
+$record25->insert_fields_ordered( MARC::Field->new( '501', '', '', 'a' => 'foo', 'a' => 'bar') );
+#print "--init record--\n". $record25->as_formatted;
+my $yaml25 = '---
+delete : f501a
+';
+$record25 = MARC::Transform->new($record25,$yaml25);
+#print "\n--transformed record--\n". $record25->as_formatted ."\n";
+my $v25a=recordtostring($record25);
+my $v25b="                        ||||501:  ";
+is($v25a,$v25b, "" );
+
+#test 26
+my $record26 = MARC::Record->new();
+$record26->leader('012345gs0 2200253   4500');
+$record26->insert_fields_ordered( MARC::Field->new( '008', 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '215', '', '', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '099', '', '', 't' => '13', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '115', '', '', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '116', '', '', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '117', '', '', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '135', '', '', 'a' => 'vo') );
+$record26->insert_fields_ordered( MARC::Field->new( '463', '', '', 'v' => 'd') );
+$record26->insert_fields_ordered( MARC::Field->new( '464', '', '', 'v' => 'd') );
+#print "--init record--\n". $record26->as_formatted;
+my $yaml26 = '---
+condition : $ldr6 eq "g" or $f135a1 eq "o"
+forceupdate :
+ f9950 : test0
+---
+condition : $f215v eq "d" or $f115a eq "a"
+forceupdate :
+ f995a : test1
+---
+condition : $ldr6 eq "g" or $f115a
+forceupdate :
+ f995b : test2
+---
+condition : $f115b or $f115v
+forceupdate :
+ f995c : test3
+---
+condition : $f215v or $f115v
+forceupdate :
+ f995d : test4
+---
+condition : $f115b or $f115v
+forceupdate :
+ f995e : test5
+---
+condition : $f116b or $f116v eq "d"
+forceupdate :
+ f995f : test6
+---
+condition : $f117b eq "1" or $f117v eq "d"
+forceupdate :
+ f995g : test7
+---
+condition : $f463 or $f464
+forceupdate :
+ f995h : test8
+---
+condition : ($f463 or $f464) and $f008_ eq "d"
+forceupdate :
+ f995i : test9
+---
+condition : $f099t eq "13" and ($f135a0 eq "v" or $f135a1 eq "o")
+forceupdate :
+ f995j : test10
+---
+condition : $f008 or $f009
+forceupdate :
+ f995k : test11
+---
+condition : $f117b and $f117v
+forceupdate :
+ f995k : testbad
+---
+condition : $f463v eq "d" and $f135
+forceupdate :
+ f700a : test0
+---
+condition : ($f463v eq "d" or $f464v eq "d") or $f008
+forceupdate :
+ f463v : test0
+';
+$record26 = MARC::Transform->new($record26,$yaml26);
+#print "\n--transformed record--\n". $record26->as_formatted ."\n";
+my $v26a=recordtostring($record26);
+my $v26b="012345gs0 2200253   4500||||008:d||099:  |t:13|v:d||115:  |v:d||116:  |v:d||117:  |v:d||135:  |a:vo||215:  |v:d||463:  |v:test0||464:  |v:d||700:  |a:test0||995:  |0:test0|a:test1|b:test2|c:test3|d:test4|e:test5|f:test6|g:test7|h:test8|i:test9|j:test10|k:test11";
+is($v26a,$v26b, "" );

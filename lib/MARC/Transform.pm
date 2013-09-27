@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.003001';
+our $VERSION = '0.003002';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -26,13 +26,11 @@ sub new {
     my @yaml;
     no warnings 'redefine';
     no warnings 'newline';
-    if ( -e $yaml )
-    {
+    if ( -e $yaml ) {
         open my $yamls, "< $yaml" or die "can't open file: $!";
         @yaml = YAML::LoadFile($yamls);
     }
-    else
-    {
+    else {
         @yaml = YAML::Load($yaml);
     }
     #warn "================". Data::Dumper::Dumper (\@yaml)."------------------";
@@ -41,73 +39,56 @@ sub new {
     $$mth{"_defaultLUT_to_mth_"}={} if $mth;
     ReplaceAllInRecord("before");
     $verbose = 1 if ($verb);
-    foreach my $rulesub(@yaml)
-    {
-        if ( ref($rulesub) eq "HASH" )
-        {
-            if ( defnonull ( $$rulesub{'global_subs'} ) )
-            {
+    foreach my $rulesub(@yaml) {
+        if ( ref($rulesub) eq "HASH" ) {
+            if ( defnonull ( $$rulesub{'global_subs'} ) ) {
                 $globalsubs = $$rulesub{'global_subs'};
                 eval ($globalsubs);
             }
-            if ( defnonull ( $$rulesub{'global_LUT'} ) )
-            {
-                if (ref($$rulesub{'global_LUT'}) eq "HASH")
-                {
+            if ( defnonull ( $$rulesub{'global_LUT'} ) ) {
+                if (ref($$rulesub{'global_LUT'}) eq "HASH") {
                     $global_LUT=$$rulesub{'global_LUT'};
                 }
             }
         }
     }
-    foreach my $rule(@yaml)
-    {
+    foreach my $rule(@yaml) {
         #print Data::Dumper::Dumper ($rule);
-        if ( ref($rule) eq "ARRAY" )
-        {
+        if ( ref($rule) eq "ARRAY" ) {
             my $subs="";
-            foreach my $rul ( @$rule )
-            {
-                if ( defnonull ( $$rul{'subs'} ) )
-                {
+            foreach my $rul ( @$rule ) {
+                if ( defnonull ( $$rul{'subs'} ) ) {
                     $subs.=$$rul{'subs'};
                 }
-                if ( defnonull ( $$rul{'LUT'} ) )
-                {
+                if ( defnonull ( $$rul{'LUT'} ) ) {
                     $$global_LUT{"lookuptableforthis"}=$$rul{'LUT'};#warn Data::Dumper::Dumper $global_LUT;
                 }
             }
-            foreach my $rul ( @$rule )
-            {
+            foreach my $rul ( @$rule ) {
                 my ($actionsin, $actionsinter, $actionsout)= parseactions($rul);#warn Data::Dumper::Dumper ($rul);
                 my $boolcondition = testrule($rul, $actionsin, $actionsinter, $actionsout, $subs);
                 #warn $boolcondition;warn "actionsin : ".$actionsin;warn "actionsout : ".$actionsout;
-                if ($boolcondition)
-                {
+                if ($boolcondition) {
                     last;
                 }
             }
         }
-        elsif ( ref($rule) eq "HASH" )
-        {
+        elsif ( ref($rule) eq "HASH" ) {
             my $subs="";
-            if ( defnonull ( $$rule{'subs'} ) )
-            {
+            if ( defnonull ( $$rule{'subs'} ) ) {
                 $subs.=$$rule{'subs'};
             }
-            if ( defnonull ( $$rule{'LUT'} ) )
-            {
+            if ( defnonull ( $$rule{'LUT'} ) ) {
                 $$global_LUT{"lookuptableforthis"}=$$rule{'LUT'};
             }
             my ($actionsin, $actionsinter, $actionsout)= parseactions($rule);
             my $boolcondition = testrule($rule, $actionsin, $actionsinter, $actionsout, $subs);
         }
-        else
-        {
+        else {
             push(@errors, 'Invalid yaml : you try to use a scalar rule.'); #error
         }
     }
-    foreach my $error (@errors)
-    {
+    foreach my $error (@errors) {
         print "\n$error";
     }
     ReplaceAllInRecord("after");
@@ -118,29 +99,22 @@ sub defnonull { my $var = shift; if (defined $var and $var ne "") { return 1; } 
 
 sub LUT {
     my ( $inLUT, $type ) = @_;
-    if (!defined($type))
-    {
+    if (!defined($type)) {
         $type = "lookuptableforthis";
     }
     my $outLUT=$inLUT;
     my $boolnocor = 1;
-    if ( ref($global_LUT) eq "HASH")
-    {
-        if (exists($$global_LUT{$type}))
-        {
+    if ( ref($global_LUT) eq "HASH") {
+        if (exists($$global_LUT{$type})) {
             my $correspondance=$$global_LUT{$type};
-            if ( ref($correspondance) eq "HASH")
-            {
-                foreach my $cor (keys(%$correspondance))
-                {
-                    if ($inLUT eq $cor)
-                    {
+            if ( ref($correspondance) eq "HASH") {
+                foreach my $cor (keys(%$correspondance)) {
+                    if ($inLUT eq $cor) {
                         $outLUT=$$correspondance{$cor};
                         $boolnocor = 0;
                     }
                 }
-                if ($boolnocor)
-                {
+                if ($boolnocor) {
                     $outLUT=$$correspondance{"_default_value_"} if (defnonull($$correspondance{"_default_value_"}));
                     push (@{$$mth{"_defaultLUT_to_mth_"}->{"$type"}} , $inLUT) if $mth;
                 }
@@ -179,69 +153,53 @@ sub create {
 sub transform {
     my ($ttype,$field,$subfields)=@_;
     #print "\n------------$ttype------------ : \n".Data::Dumper::Dumper (@_);
-    if ($ttype eq "forceupdate" or $ttype eq "forceupdatefirst" )
-    {
-        if (ref($field) eq "" or ref($field) eq "SCALAR")
-        {
-            if (!defined $record->field($field) ){$ttype="create"}
+    if ($ttype eq "forceupdate" or $ttype eq "forceupdatefirst" ) {
+        if (ref($field) eq "" or ref($field) eq "SCALAR") {
+            if (!defined $record->field($field) ) {$ttype="create"}
         }
     }
-    if (ref($field) eq "MARC::Field")
-    {
+    if (ref($field) eq "MARC::Field") {
         #print "\n------------$ttype------------ : \n".Data::Dumper::Dumper ($subfields);
-        foreach my $tag(keys(%$subfields))
-        {
-            if ( $tag eq 'i1' or  $tag eq 'µ')
-            {
+        foreach my $tag(keys(%$subfields)) {
+            if ( $tag eq 'i1' or  $tag eq 'Âµ') {
                 #print "\n------------$ttype------------ : \n";
                 $this=$field->indicator(1);
                 my $finalvalue=parsestringactions($$subfields{$tag});
                 $field->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
             }
-            elsif ( $tag eq 'i2' or  $tag eq '£')
-            {
+            elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
                 $this=$field->indicator(2);
                 my $finalvalue=parsestringactions($$subfields{$tag});
                 $field->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
             }
-            else
-            {
-                if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" )
-                {
-                    if($field->is_control_field())
-                    {
+            else {
+                if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
+                    if($field->is_control_field()) {
                         $this=$field->data();
                         my $finalvalue=parsestringactions($$subfields{$tag});
                         $field->update($finalvalue);
                     }
-                    else
-                    {
-                        if ($ttype eq "create")
-                        {
+                    else {
+                        if ($ttype eq "create") {
                             $this="";
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $field->add_subfields( $tag => $finalvalue );
                         }
-                        elsif ($ttype eq "updatefirst")
-                        {
-                            if ( defined $field->subfield( $tag ) )
-                            {
+                        elsif ($ttype eq "updatefirst") {
+                            if ( defined $field->subfield( $tag ) ) {
                                 $this=$field->subfield( $tag );
                                 my $finalvalue=parsestringactions($$subfields{$tag});
                                 $field->update( $tag => $finalvalue );
                             }
                             #warn $tag.$$subfields{$tag};
                         }
-                        elsif ($ttype eq "forceupdatefirst")
-                        {
-                            if ( defined $field->subfield( $tag ) )
-                            {
+                        elsif ($ttype eq "forceupdatefirst") {
+                            if ( defined $field->subfield( $tag ) ) {
                                 $this=$field->subfield( $tag );
                                 my $finalvalue=parsestringactions($$subfields{$tag});
                                 $field->update( $tag => $finalvalue );
                             }
-                            else
-                            {
+                            else {
                                 $this="";
                                 my $finalvalue=parsestringactions($$subfields{$tag});
                                 $field->add_subfields( $tag => $finalvalue );
@@ -249,37 +207,28 @@ sub transform {
                         }
                     }
                 }
-                elsif( ref($$subfields{$tag}) eq "ARRAY" )
-                {
-                    if(!$field->is_control_field())
-                    {
-                        foreach my $subfield(@{$$subfields{$tag}})
-                        {
-                            if ($ttype eq "create")
-                            {
+                elsif( ref($$subfields{$tag}) eq "ARRAY" ) {
+                    if(!$field->is_control_field()) {
+                        foreach my $subfield(@{$$subfields{$tag}}) {
+                            if ($ttype eq "create") {
                                 $this="";
                                 my $finalvalue=parsestringactions($subfield);
                                 $field->add_subfields( $tag => $finalvalue );
                             }
-                            elsif ($ttype eq "updatefirst")
-                            {
-                                if ( defined $field->subfield( $tag ) )
-                                {
+                            elsif ($ttype eq "updatefirst") {
+                                if ( defined $field->subfield( $tag ) ) {
                                     $this=$field->subfield( $tag );
                                     my $finalvalue=parsestringactions($subfield);
                                     $field->update( $tag => $finalvalue );
                                 }
                             }
-                            elsif ($ttype eq "forceupdatefirst")
-                            {
-                                if ( defined $field->subfield( $tag ) )
-                                {
+                            elsif ($ttype eq "forceupdatefirst") {
+                                if ( defined $field->subfield( $tag ) ) {
                                     $this=$field->subfield( $tag );
                                     my $finalvalue=parsestringactions($subfield);
                                     $field->update( $tag => $finalvalue );
                                 }
-                                else
-                                {
+                                else {
                                     $this="";
                                     my $finalvalue=parsestringactions($subfield);
                                     $field->add_subfields( $tag => $finalvalue );
@@ -287,45 +236,34 @@ sub transform {
                             }
                         }
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : you try to use an array to '.$ttype.' in existing condition\'s controlfield value.'); #error
                     }
                 }
             }
         }
-        if((!$field->is_control_field()) and ($ttype eq "update" or $ttype eq "forceupdate" ))
-        {
+        if((!$field->is_control_field()) and ($ttype eq "update" or $ttype eq "forceupdate" )) {
             my @usubfields;
-            foreach my $subfield ( $field->subfields() )
-            {
-                if ( exists($$subfields{$$subfield[0]}) )
-                {
+            foreach my $subfield ( $field->subfields() ) {
+                if ( exists($$subfields{$$subfield[0]}) ) {
                     #implementation de l'eval des fonctions et de $this
                     $this=$$subfield[1];
                     my $finalvalue=parsestringactions($$subfields{$$subfield[0]});
                     push @usubfields, ( $$subfield[0],$finalvalue );
-                    #push @usubfields, ( $$subfield[0], $$subfields{$$subfield[0]} );
                 }
-                else
-                {
+                else {
                     push @usubfields, ( $$subfield[0], $$subfield[1] );
                 }
             }
             my $newfield = MARC::Field->new( $field->tag(), $field->indicator(1), $field->indicator(2), @usubfields );
-            foreach my $tag(keys(%$subfields))
-            {
-                if($tag ne 'i1' and $tag ne 'µ' and $tag ne 'i2' and $tag ne '£' and !defined($newfield->subfield( $tag )) )
-                {
-                    if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" )
-                    {
+            foreach my $tag(keys(%$subfields)) {
+                if($tag ne 'i1' and $tag ne 'Âµ' and $tag ne 'i2' and $tag ne 'Â£' and !defined($newfield->subfield( $tag )) ) {
+                    if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
                         $this="";
                         my $finalvalue=parsestringactions($$subfields{$tag});
                         $newfield->add_subfields( $tag => $finalvalue ) if $ttype eq "forceupdate";
-                        #$newfield->add_subfields( $tag => $$subfields{$tag} );
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : you try to use a non-scalar value to '.$ttype.' in existing condition\'s field value.'); #error
                     }
                 }
@@ -333,96 +271,73 @@ sub transform {
             $field->replace_with($newfield);
         }
     }
-    elsif (ref($field) eq "" or ref($field) eq "SCALAR")
-    {
+    elsif (ref($field) eq "" or ref($field) eq "SCALAR") {
         #print "\n------------$ttype------------ : \n".Data::Dumper::Dumper (@_);
-        if ($ttype eq "update" or $ttype eq "updatefirst" or $ttype eq "forceupdate" or $ttype eq "forceupdatefirst")
-        {
-            if ( defined $record->field($field) )
-            {
-                for my $updatefield ( $record->field($field) )
-                {
-                    foreach my $tag(keys(%$subfields))
-                    {
-                        if ( $tag eq 'i1' or  $tag eq 'µ')
-                        {
+        if ($ttype eq "update" or $ttype eq "updatefirst" or $ttype eq "forceupdate" or $ttype eq "forceupdatefirst") {
+            if ( defined $record->field($field) ) {
+                for my $updatefield ( $record->field($field) ) {
+                    foreach my $tag(keys(%$subfields)) {
+                        if ( $tag eq 'i1' or  $tag eq 'Âµ') {
                             $this=$updatefield->indicator(1);
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $updatefield->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                         }
-                        elsif ( $tag eq 'i2' or  $tag eq '£')
-                        {
+                        elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
                             $this=$updatefield->indicator(2);
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $updatefield->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                         }
-                        elsif( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" )
-                        {
-                            if($updatefield->is_control_field())
-                            {
+                        elsif( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
+                            if($updatefield->is_control_field()) {
                                 $this=$updatefield->data();
                                 my $finalvalue=parsestringactions($$subfields{$tag});
                                 $updatefield->update($finalvalue);
                             }
-                            elsif ( $ttype eq "updatefirst" )
-                            {
-                                if ( defined $updatefield->subfield( $tag ) )
-                                {
+                            elsif ( $ttype eq "updatefirst" ) {
+                                if ( defined $updatefield->subfield( $tag ) ) {
                                     $this=$updatefield->subfield( $tag );
                                     my $finalvalue=parsestringactions($$subfields{$tag});
                                     $updatefield->update( $tag => $finalvalue );
                                 }
                             }
-                            elsif ($ttype eq "forceupdatefirst")
-                            {
-                                if ( defined $updatefield->subfield( $tag ) )
-                                {
+                            elsif ($ttype eq "forceupdatefirst") {
+                                if ( defined $updatefield->subfield( $tag ) ) {
                                     $this=$updatefield->subfield( $tag );
                                     my $finalvalue=parsestringactions($$subfields{$tag});
                                     $updatefield->update( $tag => $finalvalue );
                                 }
-                                else
-                                {
+                                else {
                                     $this="";
                                     my $finalvalue=parsestringactions($$subfields{$tag});
                                     $updatefield->add_subfields( $tag => $finalvalue );
                                 }
                             }
                         }
-                        else
-                        {
+                        else {
                             push(@errors, 'Invalid yaml : you try to use a non-scalar value to '.$ttype.' field.');#error
                         }
                     }
-                    if((!$updatefield->is_control_field()) and ($ttype eq "update" or $ttype eq "forceupdate" ))
-                    {
+                    if((!$updatefield->is_control_field()) and ($ttype eq "update" or $ttype eq "forceupdate" )) {
                         my @usubfields;
-                        foreach my $subfield ( $updatefield->subfields() )
-                        {
-                            if ( exists($$subfields{$$subfield[0]}) )
-                            {
+                        foreach my $subfield ( $updatefield->subfields() ) {
+                            if ( exists($$subfields{$$subfield[0]}) ) {
                                 $this=$$subfield[1];
                                 my $finalvalue=parsestringactions($$subfields{$$subfield[0]});
                                 push @usubfields, ( $$subfield[0],$finalvalue );
                             }
-                            else
-                            {
+                            else {
                                 push @usubfields, ( $$subfield[0], $$subfield[1] );
                             }
                         }
                         my $newfield = MARC::Field->new( $updatefield->tag(), $updatefield->indicator(1), $updatefield->indicator(2), @usubfields );
-                        foreach my $tag(keys(%$subfields))
-                        {
-                            if($tag ne 'i1' and $tag ne 'µ' and $tag ne 'i2' and $tag ne '£' and !defined($newfield->subfield( $tag )) )
-                            {
-                                if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" )
-                                {
+                        foreach my $tag(keys(%$subfields)) {
+                            if($tag ne 'i1' and $tag ne 'Âµ' and $tag ne 'i2' and $tag ne 'Â£' and !defined($newfield->subfield( $tag )) ) {
+                                if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
                                     $this="";
                                     my $finalvalue=parsestringactions($$subfields{$tag});
                                     $newfield->add_subfields( $tag => $finalvalue ) if $ttype eq "forceupdate";
                                 }
-                                else
-                                {
+                                else {
                                     push(@errors, 'Invalid yaml : you try to use a non-scalar value to '.$ttype.' field.');#error
                                 }
                             }
@@ -432,52 +347,39 @@ sub transform {
                 }
             }
         }
-        elsif ($ttype eq "create")
-        {
+        elsif ($ttype eq "create") {
             my $newfield;
             $this="";
-            if ($field < "010" )
-            {
+            if ($field < "010" ) {
                 $newfield = MARC::Field->new( $field, 'temp');
             }
-            else
-            {
+            else {
                 $newfield = MARC::Field->new( $field, '', '', '0'=>'temp');
             }
             
-            foreach my $tag(keys(%$subfields))
-            {
-                if ( $tag eq 'i1' or  $tag eq 'µ')
-                {
+            foreach my $tag(keys(%$subfields)) {
+                if ( $tag eq 'i1' or  $tag eq 'Âµ') {
                     my $finalvalue=parsestringactions($$subfields{$tag});
                     $newfield->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                 }
-                elsif ( $tag eq 'i2' or  $tag eq '£')
-                {
+                elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
                     my $finalvalue=parsestringactions($$subfields{$tag});
                     $newfield->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                 }
-                else
-                {
-                    if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" )
-                    {
-                        if($newfield->is_control_field())
-                        {
+                else {
+                    if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
+                        if($newfield->is_control_field()) {
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $newfield->update($finalvalue);
                         }
-                        else
-                        {
+                        else {
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $newfield->add_subfields( $tag => $finalvalue );
                         }
                     }
-                    elsif( ref($$subfields{$tag}) eq "ARRAY" )
-                    {
-                        if(!$newfield->is_control_field())
-                        {
-                            foreach my $subfield(@{$$subfields{$tag}})
-                            {
+                    elsif( ref($$subfields{$tag}) eq "ARRAY" ) {
+                        if(!$newfield->is_control_field()) {
+                            foreach my $subfield(@{$$subfields{$tag}}) {
                                 my $finalvalue=parsestringactions($subfield);
                                 $newfield->add_subfields( $tag => $finalvalue );
                             }
@@ -485,15 +387,13 @@ sub transform {
                     }
                 }
             }
-            if (!$newfield->is_control_field())
-            {
+            if (!$newfield->is_control_field()) {
                 $newfield->delete_subfield(pos => '0');
             }
             $record->insert_fields_ordered($newfield);
         }
     }
-    else
-    {
+    else {
         push(@errors, 'Invalid yaml : you try to use an array or hash value to '.$ttype.' field.');#error
     }
     return 1;
@@ -504,13 +404,11 @@ sub parsestringactions {
     $subfieldtemp=~s/tempnameforcurrentvalueofthissubfield/\$this/g;
     $subfieldtemp=~s/temporarycallfunction/\\&/g;
     my $finalvalue;
-    if ($subfieldtemp=~/\\&/)
-    {
+    if ($subfieldtemp=~/\\&/) {
         $subfieldtemp=~s/\\&/&/g;
         $finalvalue = eval ($subfieldtemp);
     }
-    else
-    {
+    else {
         $finalvalue = eval '"'.$subfieldtemp.'"';
     }
     return $finalvalue;
@@ -525,47 +423,38 @@ sub parseactions {
     my $actionsout="";
     #print "\n".Data::Dumper::Dumper $rul;
     #create duplicatefield forceupdate forceupdatefirst update updatefirst execute delete 
-    if ( defnonull ( $$rul{'create'} ) )
-    {
+    if ( defnonull ( $$rul{'create'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'create'},'create');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'duplicatefield'} ) )
-    {
+    if ( defnonull ( $$rul{'duplicatefield'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'duplicatefield'},'duplicatefield');
         $actionsinter.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'forceupdate'} ) )
-    {
+    if ( defnonull ( $$rul{'forceupdate'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'forceupdate'},'forceupdate');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'forceupdatefirst'} ) )
-    {
+    if ( defnonull ( $$rul{'forceupdatefirst'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'forceupdatefirst'},'forceupdatefirst');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'update'} ) )
-    {
+    if ( defnonull ( $$rul{'update'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'update'},'update');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'updatefirst'} ) )
-    {
+    if ( defnonull ( $$rul{'updatefirst'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'updatefirst'},'updatefirst');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'execute'} ) )
-    {
+    if ( defnonull ( $$rul{'execute'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'execute'},'execute');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    if ( defnonull ( $$rul{'delete'} ) )
-    {
+    if ( defnonull ( $$rul{'delete'} ) ) {
         ($actionsintemp,$actionsouttemp)=parsesubaction ($$rul{'delete'},'delete');
         $actionsin.=$actionsintemp;    $actionsout.=$actionsouttemp;
     }
-    
     #print "\n----------------------actionsin---------------------- : \n$actionsin\n\n----------------------actionsout---------------------- : \n$actionsout\n----------------------actionsend----------------------";
     return ($actionsin, $actionsinter, $actionsout)
 }
@@ -579,48 +468,37 @@ sub parsesubaction {
     my $currentaction="";#warn ref($intaction);
     $specaction=" $type";
     #print "\n".Data::Dumper::Dumper $intaction;
-    if ($type eq "create" or $type eq "forceupdate" or $type eq "update" or $type eq "forceupdatefirst" or $type eq "updatefirst")
-    {
-        if ( ref($intaction) eq "HASH" )
-        {
-            foreach my $kint (keys(%$intaction))
-            {
-                if( ref($$intaction{$kint}) eq "HASH" )
-                {
+    if ($type eq "create" or $type eq "forceupdate" or $type eq "update" or $type eq "forceupdatefirst" or $type eq "updatefirst") {
+        if ( ref($intaction) eq "HASH" ) {
+            foreach my $kint (keys(%$intaction)) {
+                if( ref($$intaction{$kint}) eq "HASH" ) {
                     my $ftag;
                     $currentaction="";
                     $boolin=0;
-                    if($kint=~/^\$f(\d{3})$/)
-                    {
+                    if($kint=~/^\$f(\d{3})$/) {
                         $boolin=1;
                         $ftag=$kint;
                     }
-                    elsif($kint=~/^f(\d{3})$/)
-                    {
+                    elsif($kint=~/^f(\d{3})$/) {
                         $ftag='"'.$1.'"';
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
                         next;
                     }
                     $currentaction.=$specaction.'('.$ftag.',{';
                     my $subint=$$intaction{$kint};
-                    foreach my $k (keys(%$subint))
-                    {
-                        if( ref($$subint{$k}) eq "" or ref($$subint{$k}) eq "SCALAR" )
-                        {
+                    foreach my $k (keys(%$subint)) {
+                        if( ref($$subint{$k}) eq "" or ref($$subint{$k}) eq "SCALAR" ) {
                             $$subint{$k}=~s/"/\\"/g;
                             $boolin=1 if($$subint{$k}=~/\$f/);#print $k." eq. ".$$subint{$k}."\n";
                             $$subint{$k}=~s/\$this/tempnameforcurrentvalueofthissubfield/g;
                             $$subint{$k}=~s/\\&/temporarycallfunction/g;
                             $currentaction.='"'.$k.'"=> "'.$$subint{$k}.'",';
                         }
-                        elsif( ref($$subint{$k}) eq "ARRAY" )
-                        {
+                        elsif( ref($$subint{$k}) eq "ARRAY" ) {
                             $currentaction.='"'.$k.'"=>[';
-                            foreach my $ssubint(@{$$subint{$k}})
-                            {
+                            foreach my $ssubint(@{$$subint{$k}}) {
                                 $ssubint=~s/"/\\"/g;
                                 $boolin=1 if($ssubint=~/\$f/);
                                 $ssubint=~s/\$this/tempnameforcurrentvalueofthissubfield/g;
@@ -629,62 +507,53 @@ sub parsesubaction {
                             }
                             $currentaction.='],';
                         }
-                        else
-                        {
+                        else {
                             push(@errors, 'Invalid yaml : you try to use a hash inside another hash in '.$type.' action.');#error
                         }
                     }
                     $currentaction.='});'."\n";
                     if ($boolin) { $actionsin.=$currentaction; } else { $actionsout.=$currentaction; }
                 }
-                elsif( ref($$intaction{$kint}) eq "" or ref($$intaction{$kint}) eq "SCALAR" )
-                {
+                elsif( ref($$intaction{$kint}) eq "" or ref($$intaction{$kint}) eq "SCALAR" ) {
                     $currentaction="";
                     $boolin=0;
                     my $ftag;
                     my $stag;
-                    if($kint=~/^\$f(\d{3})(\w)$/)
-                    {
+                    if($kint=~/^\$f(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
                         $stag=$2;
                     }
-                    elsif($kint=~/^\$i(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^\$i(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
-                        $stag='µ';
-                        $stag='µ' if($2 eq "1");
-                        $stag='£' if($2 eq "2");
+                        $stag='Âµ';
+                        $stag='Âµ' if($2 eq "1");
+                        $stag='Â£' if($2 eq "2");
                     }
-                    elsif($kint=~/^f(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^f(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
                         $stag=$2;
                     }
-                    elsif($kint=~/^i(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^i(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
-                        $stag='µ';
-                        $stag='µ' if($2 eq "1");
-                        $stag='£' if($2 eq "2");
+                        $stag='Âµ';
+                        $stag='Âµ' if($2 eq "1");
+                        $stag='Â£' if($2 eq "2");
                     }
-                    elsif($kint=~/^i(\d)$/)
-                    {
+                    elsif($kint=~/^i(\d)$/) {
                         $ftag='$$currentfield';
-                        $stag='µ';
-                        $stag='µ' if($1 eq "1");
-                        $stag='£' if($1 eq "2");
+                        $stag='Âµ';
+                        $stag='Âµ' if($1 eq "1");
+                        $stag='Â£' if($1 eq "2");
                         $boolin=1;
                     }
-                    elsif($kint=~/^(\w)$/)
-                    {
+                    elsif($kint=~/^(\w)$/) {
                         $ftag='$$currentfield';
                         $boolin=1;
                         $stag=$kint;
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
                         next;
                     }
@@ -695,52 +564,44 @@ sub parsesubaction {
                     $currentaction.=$specaction.'('.$ftag.',{"'.$stag.'"=>"'.$$intaction{$kint}.'"});'."\n";
                     if ($boolin) { $actionsin.=$currentaction; } else { $actionsout.=$currentaction; }
                 }
-                elsif( ref($$intaction{$kint}) eq "ARRAY" )
-                {
+                elsif( ref($$intaction{$kint}) eq "ARRAY" ) {
                     $currentaction="";
                     $boolin=0;
                     my $ftag;
                     my $stag;
-                    if($kint=~/^\$f(\d{3})(\w)$/)
-                    {
+                    if($kint=~/^\$f(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
                         $stag=$2;
                     }
-                    elsif($kint=~/^\$i(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^\$i(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
-                        $stag='µ';
-                        $stag='µ' if($2 eq "1");
-                        $stag='£' if($2 eq "2");
+                        $stag='Âµ';
+                        $stag='Âµ' if($2 eq "1");
+                        $stag='Â£' if($2 eq "2");
                     }
-                    elsif($kint=~/^f(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^f(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
                         $stag=$2;
                     }
-                    elsif($kint=~/^i(\d{3})(\w)$/)
-                    {
+                    elsif($kint=~/^i(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
-                        $stag='µ';
-                        $stag='µ' if($2 eq "1");
-                        $stag='£' if($2 eq "2");
+                        $stag='Âµ';
+                        $stag='Âµ' if($2 eq "1");
+                        $stag='Â£' if($2 eq "2");
                     }
-                    elsif($kint=~/^(\w)$/)
-                    {
+                    elsif($kint=~/^(\w)$/) {
                         $ftag='$$currentfield';
                         $boolin=1;
                         $stag=$kint;
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
                         next;
                     }
                     $currentaction.=$specaction.'('.$ftag.',{"'.$stag.'"=>[';
-                    foreach my $sintaction(@{$$intaction{$kint}})
-                    {
+                    foreach my $sintaction(@{$$intaction{$kint}}) {
                         $sintaction=~s/"/\\"/g;
                         $boolin=1 if($sintaction=~/\$f/);
                         $sintaction=~s/\$this/tempnameforcurrentvalueofthissubfield/g;
@@ -752,228 +613,167 @@ sub parsesubaction {
                 }
             }
         }
-        else
-        {
+        else {
             push(@errors, 'Invalid yaml : you try to use non hash context in '.$type.' action.');#error
         }
     }
-    elsif ($type eq "duplicatefield")
-    {
-        if ( ref($intaction) eq "ARRAY" )
-        {
-            foreach my $vint (@$intaction)
-            {
-                if( ref($vint) eq "" or ref($vint) eq "SCALAR" )
-                {
-                    if($vint=~/^\$f(\d{3})\s?>\s?f(\d{3})$/)
-                    {
-                        if ($1 < "010" and $2 < "010" )
-                        {
+    elsif ($type eq "duplicatefield") {
+        if ( ref($intaction) eq "ARRAY" ) {
+            foreach my $vint (@$intaction) {
+                if( ref($vint) eq "" or ref($vint) eq "SCALAR" ) {
+                    if($vint=~/^\$f(\d{3})\s?>\s?f(\d{3})$/) {
+                        if ($1 < "010" and $2 < "010" ) {
                             $actionsin.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $f'.$1.'->data() ) );';
                         }
-                        elsif ($1 >= "010" and $2 >= "010" )
-                        {
+                        elsif ($1 >= "010" and $2 >= "010" ) {
                             $actionsin.='my @dsubfields; foreach my $subfield ( $f'.$1.'->subfields() ) { push @dsubfields, ( $$subfield[0], $$subfield[1] );}'."\n";
                             $actionsin.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $f'.$1.'->indicator(1), $f'.$1.'->indicator(2), @dsubfields ) );';
                         }
-                        else
-                        {
+                        else {
                             push(@errors, 'Invalid yaml : you want to duplicate a controlfield with a non-controlfield ');#error
                         }
                     }
-                    elsif($vint=~/^f(\d{3})\s?>\s?f(\d{3})$/)
-                    {
-                        if ($1 < "010" and $2 < "010" )
-                        {
+                    elsif($vint=~/^f(\d{3})\s?>\s?f(\d{3})$/) {
+                        if ($1 < "010" and $2 < "010" ) {
                             $actionsout.=' for my $fielddup($record->field("'.$1.'")){';
                             $actionsout.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $fielddup->data() ) );';
                             $actionsout.='}'."\n";
                         }
-                        elsif ($1 >= "010" and $2 >= "010" )
-                        {
+                        elsif ($1 >= "010" and $2 >= "010" ) {
                             $actionsout.=' for my $fielddup($record->field("'.$1.'")){';
                             $actionsout.='my @dsubfields; foreach my $subfield ( $fielddup->subfields() ) { push @dsubfields, ( $$subfield[0], $$subfield[1] );}'."\n";
                             $actionsout.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $fielddup->indicator(1), $fielddup->indicator(2), @dsubfields ) );';
                             $actionsout.='}'."\n";
                         }
-                        else
-                        {
+                        else {
                             push(@errors, 'Invalid yaml : you want to duplicate a controlfield with a non-controlfield ');#error
                         }
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
                     }
                 }
-                else
-                {
+                else {
                     push(@errors, 'Invalid yaml : you try to use non scalar value in '.$type.' action.');#error
                 }
             }
         }
-        elsif ( ref($intaction) eq "" or ref($intaction) eq "SCALAR" )
-        {
+        elsif ( ref($intaction) eq "" or ref($intaction) eq "SCALAR" ) {
             my $vint=$intaction;
-            if($vint=~/^\$f(\d{3})\s?>\s?f(\d{3})$/)
-            {
-                if ($1 < "010" and $2 < "010" )
-                {
+            if($vint=~/^\$f(\d{3})\s?>\s?f(\d{3})$/) {
+                if ($1 < "010" and $2 < "010" ) {
                     $actionsin.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $f'.$1.'->data() ) );';
                 }
-                elsif ($1 >= "010" and $2 >= "010" )
-                {
+                elsif ($1 >= "010" and $2 >= "010" ) {
                     $actionsin.='my @dsubfields; foreach my $subfield ( $f'.$1.'->subfields() ) { push @dsubfields, ( $$subfield[0], $$subfield[1] );}'."\n";
                     $actionsin.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $f'.$1.'->indicator(1), $f'.$1.'->indicator(2), @dsubfields ) );';
                 }
-                else
-                {
+                else {
                     push(@errors, 'Invalid yaml : you want to duplicate a controlfield with a non-controlfield ');#error
                 }
             }
-            elsif($vint=~/^f(\d{3})\s?>\s?f(\d{3})$/)
-            {
-                if ($1 < "010" and $2 < "010" )
-                {
+            elsif($vint=~/^f(\d{3})\s?>\s?f(\d{3})$/) {
+                if ($1 < "010" and $2 < "010" ) {
                     $actionsout.=' for my $fielddup($record->field("'.$1.'")){';
                     $actionsout.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $fielddup->data() ) );';
                     $actionsout.='}'."\n";
                 }
-                elsif ($1 >= "010" and $2 >= "010" )
-                {
+                elsif ($1 >= "010" and $2 >= "010" ) {
                     $actionsout.=' for my $fielddup($record->field("'.$1.'")){';
                     $actionsout.='my @dsubfields; foreach my $subfield ( $fielddup->subfields() ) { push @dsubfields, ( $$subfield[0], $$subfield[1] );}'."\n";
                     $actionsout.='$record->insert_fields_ordered( MARC::Field->new( "'.$2.'", $fielddup->indicator(1), $fielddup->indicator(2), @dsubfields ) );';
                     $actionsout.='}'."\n";
                 }
-                else
-                {
+                else {
                     push(@errors, 'Invalid yaml : you want to duplicate a controlfield with a non-controlfield ');#error
                 }
             }
-            else
-            {
+            else {
                 push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
             }
         }
-        else
-        {
+        else {
             push(@errors, 'Invalid yaml : you try to use a hash value in '.$type.' action.');#error
         }
     }
-    elsif ($type eq "delete")
-    {
-        if ( ref($intaction) eq "ARRAY" )
-        {
-            foreach my $vint (@$intaction)
-            {
-                if( ref($vint) eq "" or ref($vint) eq "SCALAR" )
-                {
+    elsif ($type eq "delete") {
+        if ( ref($intaction) eq "ARRAY" ) {
+            foreach my $vint (@$intaction) {
+                if( ref($vint) eq "" or ref($vint) eq "SCALAR" ) {
                     #print "$vint\n";
-                    if($vint=~/^\$f(\d{3})(\w)$/)
-                    {
-                        #$actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+                    if($vint=~/^\$f(\d{3})(\w)$/) {
                         $actionsin.=' if ( defined $f'.$1.'->subfield("'.$2.'") ) { if (scalar($f'.$1.'->subfields())==1) { $record->delete_field($f'.$1.'); } else { $f'.$1.'->delete_subfield(code => "'.$2.'"); } }'."\n";
                     }
-                    elsif($vint=~/^\$f(\d{3})$/)
-                    {
+                    elsif($vint=~/^\$f(\d{3})$/) {
                         $actionsin.=' $record->delete_field('.$vint.');'."\n";
                     }
-                    elsif($vint=~/^f(\d{3})(\w)$/)
-                    {
-                        #$actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+                    elsif($vint=~/^f(\d{3})(\w)$/) {
                         $actionsout.=' for my $fieldel($record->field("'.$1.'")){if ( defined $fieldel->subfield("'.$2.'") ) { if (scalar($fieldel->subfields())==1) { $record->delete_field($fieldel); } else { $fieldel->delete_subfield(code => "'.$2.'"); } }}'."\n";
                     }
-                    elsif($vint=~/^f(\d{3})$/)
-                    {
+                    elsif($vint=~/^f(\d{3})$/) {
                         $actionsout.=' $record->delete_fields($record->field("'.$1.'"));'."\n";
                     }
-                    elsif($vint=~/^(\w)$/)
-                    {
-                        #$actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+                    elsif($vint=~/^(\w)$/) {
                         $actionsin.=' if ( defined $$currentfield->subfield("'.$vint.'") ) { if (scalar($$currentfield->subfields())==1) { $record->delete_field($$currentfield); } else { $$currentfield->delete_subfield(code => "'.$vint.'"); } }'."\n";
                     }
-                    else
-                    {
+                    else {
                         push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
                     }
                 }
-                else
-                {
+                else {
                     push(@errors, 'Invalid yaml : you try to use non scalar value in '.$type.' action.');#error
                 }
             }
         }
-        elsif ( ref($intaction) eq "" or ref($intaction) eq "SCALAR" )
-        {
+        elsif ( ref($intaction) eq "" or ref($intaction) eq "SCALAR" ) {
             my $vint=$intaction;
-            if($vint=~/^\$f(\d{3})(\w)$/)
-            {
-                #$actionsin.=' $f'.$1.'->delete_subfield(code => "'.$2.'");'."\n";
+            if($vint=~/^\$f(\d{3})(\w)$/) {
                 $actionsin.=' if ( defined $f'.$1.'->subfield("'.$2.'") ) { if (scalar($f'.$1.'->subfields())==1) { $record->delete_field($f'.$1.'); } else { $f'.$1.'->delete_subfield(code => "'.$2.'"); } }'."\n";
             }
-            elsif($vint=~/^\$f(\d{3})$/)
-            {
+            elsif($vint=~/^\$f(\d{3})$/) {
                 $actionsin.=' $record->delete_field('.$vint.');'."\n";
             }
-            elsif($vint=~/^f(\d{3})(\w)$/)
-            {
-                #$actionsout.=' for my $fieldel($record->field("'.$1.'")){$fieldel->delete_subfield(code => "'.$2.'");}'."\n";
+            elsif($vint=~/^f(\d{3})(\w)$/) {
                 $actionsout.=' for my $fieldel($record->field("'.$1.'")){if ( defined $fieldel->subfield("'.$2.'") ) { if (scalar($fieldel->subfields())==1) { $record->delete_field($fieldel); } else { $fieldel->delete_subfield(code => "'.$2.'"); } }}'."\n";
             }
-            elsif($vint=~/^f(\d{3})$/)
-            {
+            elsif($vint=~/^f(\d{3})$/) {
                 $actionsout.=' $record->delete_fields($record->field("'.$1.'"));'."\n";
             }
-            elsif($vint=~/^(\w)$/)
-            {
-                #$actionsin.=' $$currentfield->delete_subfield(code => "'.$vint.'");'."\n";
+            elsif($vint=~/^(\w)$/) {
                 $actionsin.=' if ( defined $$currentfield->subfield("'.$vint.'") ) { if (scalar($$currentfield->subfields())==1) { $record->delete_field($$currentfield); } else { $$currentfield->delete_subfield(code => "'.$vint.'"); } }'."\n";
             }
-            else
-            {
+            else {
                 push(@errors, 'Invalid yaml : your field reference is not valid in '.$type.' action.');#error
             }
         }
-        else
-        {
+        else {
             push(@errors, 'Invalid yaml : you try to use a hash value in '.$type.' action.');#error
         }
     }
-    elsif ($type eq "execute")
-    {
-        if( ref($intaction) eq "" or ref($intaction) eq "SCALAR" )
-        {
-            if($intaction=~/\$(f|i)(\d{3})/)
-            {
+    elsif ($type eq "execute") {
+        if( ref($intaction) eq "" or ref($intaction) eq "SCALAR" ) {
+            if($intaction=~/\$(f|i)(\d{3})/) {
                 $actionsin.=' eval ('.$intaction.');';
             }
-            else
-            {
+            else {
                 $actionsout.=' eval ('.$intaction.');';
             }
         }
-        elsif( ref($intaction) eq "ARRAY" )
-        {
-            foreach my $sintaction(@$intaction)
-            {
-                if($sintaction=~/\$(f|i)(\d{3})/)
-                {
+        elsif( ref($intaction) eq "ARRAY" ) {
+            foreach my $sintaction(@$intaction) {
+                if($sintaction=~/\$(f|i)(\d{3})/) {
                     $actionsin.=' eval ('.$sintaction.');';
                 }
-                else
-                {
+                else {
                     $actionsout.=' eval ('.$sintaction.');';
                 }
             }
         }
-        else
-        {
+        else {
             push(@errors, 'Invalid yaml : you try to use a hash value in '.$type.' action.');#error
         }
     }
-    else
-    {
+    else {
         push(@errors, 'Invalid yaml : this action : '.$type.' is not valid.');#error
     }
     return ($actionsin,$actionsout);
@@ -983,30 +783,23 @@ sub testrule {
     my ($rul, $actionsin, $actionsinter, $actionsout, $subs) = @_;
     $globalcondition="";
     $subs="no warnings 'redefine';".$subs if $subs ne "";
-    my $globalconditionstart='{ '."\n".$subs."\n".' my $boolcond=0;my $boolcondint=0;my $currentfield;no warnings \'substr\';no warnings \'uninitialized\';';
+    my $globalconditionstart='{ '."\n".$subs."\n".'my $boolcond=0;my $boolcondint=0;my $currentfield;no warnings \'substr\';no warnings \'uninitialized\';'."\n";
     my $globalconditionint="";
     my $globalconditionend="";#print Data::Dumper::Dumper ($rul);
-    
-    if ( defnonull ( $$rul{'condition'} ) )
-    {
+    if ( defnonull ( $$rul{'condition'} ) ) {
         my @listconditiontags=grep( $_ , map({ $_=~/^(f|i)(\d{3})(.*)$/;$2 } (split(/\$/,$$rul{'condition'}))));#print $$rul{'condition'};
         my @listconditionsubtags=grep( $_ , map({ if($_=~/^(f)(\d{3}\w)(.*)$/){$2}elsif($_=~/^(i)(\d{3})(.*)$/){$2} } (split(/\$/,$$rul{'condition'}))));
         my %tag_names = map( { $_ => 1 } @listconditiontags);
         my %tag_list;
         @listconditiontags = keys(%tag_names);
-        foreach my $tag(@listconditiontags)
-        {
+        foreach my $tag(@listconditiontags) {
             $tag_list{$tag}=[];
-            foreach my $subtag(@listconditionsubtags)
-            {
-                if (substr($subtag,0,3) eq $tag)
-                {
-                    if(length($subtag) == 3)
-                    {
+            foreach my $subtag(@listconditionsubtags) {
+                if (substr($subtag,0,3) eq $tag) {
+                    if(length($subtag) == 3) {
                         push (@{$tag_list{$tag}}, "tempvalueforcurrentfield");
                     }
-                    else
-                    {
+                    else {
                         push (@{$tag_list{$tag}}, substr($subtag,3,1));
                     }
                 }
@@ -1018,44 +811,45 @@ sub testrule {
         $condition=~s/(\$f\d{3})(\w)(\d{1,2})/\(substr($1$2,$3,1\)\)/g;
         $condition=~s/(\$f\d{3})(\w)/$1$2/g;
         $condition=~s/(\$i(\d{3}))(\d)/\(\$f$2->indicator\($3\)\)/g;
-        
-        foreach my $tag (keys(%tag_list))
-        {
+        my $boolsubtagrule=0;
+        my %boolsubtaglist=();
+        foreach my $tag (keys(%tag_list)) {
             my %tag_listtag = map { $_, 1 } @{$tag_list{$tag}};
+            $boolsubtaglist{$tag}=0;
             my @tag_listtagunique = keys %tag_listtag;
             $globalconditionstart.='my $f'.$tag.';';
-            foreach my $subtag (@tag_listtagunique)
-            {
+            foreach my $subtag (@tag_listtagunique) {
                 my $matchdelaration='my \$f'.$tag.$subtag.';';
                 $globalconditionstart.='my $f'.$tag.$subtag.';' if $globalconditionstart!~$matchdelaration;
             }
-            if ( defined $record->field($tag) )
-            {
-                $globalconditionint.='for $f'.$tag.' ( $record->field("'.$tag.'") ) { $currentfield=\$f'.$tag.';'."\n";
-                foreach my $subtag (@tag_listtagunique)
-                {
+            if ( defined $record->field($tag) ) {
+                $globalconditionint.="\n".'for $f'.$tag.' ( $record->field("'.$tag.'") ) {'."\n".'$currentfield=\$f'.$tag.';'."\n";
+                foreach my $subtag (@tag_listtagunique) {
+                    $boolsubtagrule=1;
+                    $boolsubtaglist{$tag}=1;
                     if ($subtag ne "tempvalueforcurrentfield" and $tag > "010") {
-                        $globalconditionint.='if ( defined $f'.$tag.'->subfield("'.$subtag.'") ) { for $f'.$tag.$subtag.' ( $f'.$tag.'->subfield("'.$subtag.'") ){'."\n";
-                        $globalconditionend.='}}';
+                        $globalconditionint.='for $f'.$tag.$subtag.' ( $f'.$tag.'->subfield("'.$subtag.'"), my $tmpintesta=1 ) { my $tmpintestb=0; if ($tmpintesta==1) { $tmpintesta=undef;$tmpintestb=1; }'."\n";
+                        $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0 unless (!defined($tmpintesta) and $tmpintestb==0 );}'."\n";
+                        $globalconditionend.='}'."\n";
                     }
                     elsif ($subtag ne "tempvalueforcurrentfield") {
                         $globalconditionint.='$f'.$tag.$subtag.' = $f'.$tag.'->data(); '."\n";
+                        $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}'."\n";
                     }
                 }
-                $globalconditionend.="\n".'if ($boolcondint){ eval{'.$actionsinter.'};}}';
-            }
+                $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $boolsubtaglist{$tag};
+                $globalconditionend.='if ($boolcondint){ eval{'.$actionsinter.'};}}'."\n";
+            }#else { $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}'."\n"; }
         }
-        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}';
-        $globalconditionend.="\n".' if ($boolcond){eval{'.$actionsout.'}}'."\n".' return $boolcond;}';
+        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $boolsubtagrule;
+        $globalconditionend.="\n".' if ($boolcond){eval{'.$actionsout.'}}'."\n".' return $boolcond;}';#if ($boolcond or ('.$condition.'))
         $globalcondition=$globalconditionstart.$globalconditionint.$globalconditionend;
         print "\n--------globalcondition----------\n$globalcondition\n---------globalcondition---------\n" if $verbose;
         return eval($globalcondition);
     }
-    else
-    {
+    else {
         print "\n--------actionsout----------\n$globalconditionstart$actionsout}\n---------actionsout---------\n" if $verbose;
         eval($globalconditionstart.$actionsout.'}');
-        #eval($actionsout);
         return 1;
     }
     return 1;
@@ -1066,36 +860,32 @@ sub ReplaceAllInRecord {
     return unless ( $record && $record->fields() );
     foreach my $field ( $record->fields() ) {
         my @subfields;
-        if(!$field->is_control_field())
-        {
-            foreach my $subfield ( $field->subfields() ) {
-                my $newval=$$subfield[1];
-                if ($pos eq "before")
-                {
-                    #$newval=~s/\$/#_dollarsd_#/g;#to force warn
-                    $newval=~s/\$/#_dollars_#/g;
-                    $newval=~s/"/#_dbquote_#/g;
+        if(!$field->is_control_field()) {
+            if (scalar($field->subfields()) > 0) {
+                foreach my $subfield ( $field->subfields() ) {
+                    my $newval=$$subfield[1];
+                    if ($pos eq "before") {
+                        #$newval=~s/\$/#_dollarsd_#/g;#to force warn
+                        $newval=~s/\$/#_dollars_#/g;
+                        $newval=~s/"/#_dbquote_#/g;
+                    }
+                    elsif ($pos eq "after") {
+                        $newval=~s/#_dollars_#/\$/g;
+                        $newval=~s/#_dbquote_#/"/g;
+                    }
+                    push @subfields, ( $$subfield[0], $newval );
                 }
-                elsif ($pos eq "after")
-                {
-                    $newval=~s/#_dollars_#/\$/g;
-                    $newval=~s/#_dbquote_#/"/g;
-                }
-                push @subfields, ( $$subfield[0], $newval );
+                my $newfield = MARC::Field->new( $field->tag(), $field->indicator(1), $field->indicator(2), @subfields );
+                $field->replace_with($newfield);
             }
-            my $newfield = MARC::Field->new( $field->tag(), $field->indicator(1), $field->indicator(2), @subfields );
-            $field->replace_with($newfield);
         }
-        else
-        {
+        else {
             my $newval=$field->data();
-            if ($pos eq "before")
-            {
+            if ($pos eq "before") {
                 $newval=~s/\$/#_dollars_#/g;
                 $newval=~s/"/#_dbquote_#/g;
             }
-            elsif ($pos eq "after")
-            {
+            elsif ($pos eq "after") {
                 $newval=~s/#_dollars_#/\$/g;
                 $newval=~s/#_dbquote_#/"/g;
             }
@@ -1113,7 +903,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.003001
+Version 0.003002
 
 =head1 SYNOPSIS
 
@@ -2109,7 +1899,7 @@ result (with C<< $record->as_formatted >> ):
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
-      _default_value_ : valeur par défaut optionnelle
+      _default_value_ : valeur par dÃ©faut optionnelle
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
@@ -2385,7 +2175,7 @@ Stephane Delaune, (delaune.stephane at gmail.com)
 
 =head1 COPYRIGHT
 
-Copyright 2011-2012 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2013 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2398,7 +2188,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 - VERSION
 
-Version 0.003001
+Version 0.003002
 
 =head1 - SYNOPSIS
 
@@ -2406,7 +2196,7 @@ B<Perl script:>
 
     use MARC::Transform;
 
-    # Pour ce synopsis, nous créons une petite notice:
+    # Pour ce synopsis, nous crÃ©ons une petite notice:
     my $record = MARC::Record->new();
     $record->insert_fields_ordered( MARC::Field->new( 
                                     '501', '', '', 
@@ -2419,15 +2209,15 @@ B<Perl script:>
 
     # Nous transformons notre notice avec notre fichier de 
     # configuration YAML avec son chemin absolu ( ou
-    # relatif si il est appelé depuis le bon endroit) :
+    # relatif si il est appelÃ© depuis le bon endroit) :
     $record = MARC::Transform->new ( $record, "/path/conf.yaml" );
 
-    # Vous pouvez aussi écrire votre YAML dans une variable:
+    # Vous pouvez aussi Ã©crire votre YAML dans une variable:
     my $yaml="delete : f501d\n";
     # et l'utiliser pour transformer la notice:
     $record = MARC::Transform->new ( $record, $yaml );
 
-    print "\n--notice transformée--\n". $record->as_formatted ."\n";
+    print "\n--notice transformÃ©e--\n". $record->as_formatted ."\n";
 
 B<conf.yaml:>
 
@@ -2443,7 +2233,7 @@ B<conf.yaml:>
     ---
     delete : f501c
 
-B<Résultat> (avec C<< $record->as_formatted >>):
+B<RÃ©sultat> (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2452,7 +2242,7 @@ B<Résultat> (avec C<< $record->as_formatted >>):
            _cbar
            _dbor
     
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _bfirst
@@ -2462,9 +2252,9 @@ B<Résultat> (avec C<< $record->as_formatted >>):
 
 C'est un module Perl pour transformer une notice MARC en utilisant un fichier de configuration YAML.
 
-Il permet de B<créer> , B<mettre à jour> , B<supprimer> , B<dupliquer> les champs et les sous-champs d'une notice. Vous pouvez aussi utiliser des B<scripts> et des B<tables de correspondance>. Vous pouvez préciser des B<conditions> pour executer ces actions.
+Il permet de B<crÃ©er> , B<mettre Ã  jour> , B<supprimer> , B<dupliquer> les champs et les sous-champs d'une notice. Vous pouvez aussi utiliser des B<scripts> et des B<tables de correspondance>. Vous pouvez prÃ©ciser des B<conditions> pour executer ces actions.
 
-Toutes les conditions, actions, fonctions et tables de correspondance sont B<définient dans le YAML>.
+Toutes les conditions, actions, fonctions et tables de correspondance sont B<dÃ©finies dans le YAML>.
 
 MARC::Transform utilise MARC::Record.
 
@@ -2474,14 +2264,14 @@ MARC::Transform utilise MARC::Record.
 
     $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-C'est la seule méthode que vous utiliserez. Elle prend un objet MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi écrire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
+C'est la seule mÃ©thode que vous utiliserez. Elle prend un objet MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi Ã©crire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
 
     my $yaml="delete : f501d\n";
     $record = MARC::Transform->new ( $record, $yaml );
 
-=head3 - Référence à un hash optionnelle
+=head3 - RÃ©fÃ©rence Ã  un hash optionnel
 
-Comme nous allons le voir plus en détail plus bas, il est possible d'ajouter comme troisième argument une référence à un hash (nommé $mth dans le yaml).
+Comme nous allons le voir plus en dÃ©tail plus bas, il est possible d'ajouter comme troisiÃ¨me argument une rÃ©fÃ©rence Ã  un hash (nommÃ© $mth dans le yaml).
 
     my $record = MARC::Record->new(); my $hashref = {'var' => 'foo'};
     my $yaml = 'create :
@@ -2492,7 +2282,7 @@ Comme nous allons le voir plus en détail plus bas, il est possible d'ajouter com
 
 =head3 - Mode verbeux
 
-Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règle) génère un script qui est évalué, dans la notice, pour chaque champ et sous-champ spécifié dans la condition (si il y a une condition). En ajoutant un quatrième argument optionnel B<1> à la méthode, elle affiche le script généré. Cela peut être utile pour comprendre ce qu'il se passe:
+Chaque rÃ¨gle du YAML (voir les bases plus bas pour comprendre ce qu'est une rÃ¨gle) gÃ©nÃ¨re un script qui est Ã©valuÃ©, dans la notice, pour chaque champ et sous-champ spÃ©cifiÃ© dans la condition (si il y a une condition). En ajoutant un quatriÃ¨me argument optionnel B<1> Ã  la mÃ©thode, elle affiche le script gÃ©nÃ©rÃ©. Cela peut Ãªtre utile pour comprendre ce qu'il se passe:
 
     $record = MARC::Transform->new($record,"/path/conf.yaml",0,1);
 
@@ -2500,7 +2290,7 @@ Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règl
 
 =head2 - Bases
 
-- B<Le YAML est divisé en règle> (séparées par --- ), chaque règle est exécutée l'une après l'autre, les règles sans condition sont toujours exécutées:
+- B<Le YAML est divisÃ© en rÃ¨gle> (sÃ©parÃ©es par --- ), chaque rÃ¨gle est exÃ©cutÃ©e l'une aprÃ¨s l'autre, les rÃ¨gles sans condition sont toujours exÃ©cutÃ©es:
 
     ---
     condition : $f501a eq "foo"
@@ -2510,16 +2300,16 @@ Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règl
     delete : f501c
     ---
 
-- B<les conditions sont écrites en perl>, ce qui permet une grande flexibilité. Elles doivent être définies avec C<condition : >
+- B<les conditions sont Ã©crites en perl>, ce qui permet une grande flexibilitÃ©. Elles doivent Ãªtre dÃ©finies avec C<condition : >
 
     condition : ($f501a=~/foo/ and $f503a=~/bar/) or ($f102a eq "bib")
     # si un 501$a et un 503$a contiennent foo et bar, ou si un 102$a = bib
 
-- Les conditions testent les notices B<champ par champ> (uniquement sur les champs définis dans la condition)
+- Les conditions testent les notices B<champ par champ> (uniquement sur les champs dÃ©finis dans la condition)
 
 Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la notice, si notre condition est C<$f501a eq "foo" and $f501b eq "bar">, cette condition sera vrai uniquement si un champ '501' a un sous-champ 'a' = "foo" ET un sous-champ 'b' = 'bar' (elle sera fausse si il y a un champ '501' avec un sous-champ 'a' = "foo" et UN AUTRE champ '501' avec un sous-champ 'b' = "bar").
 
-- Il est possible de lancer plusieurs actions différentes dans une seule règle:
+- Il est possible de lancer plusieurs actions diffÃ©rentes dans une seule rÃ¨gle:
 
     ---
     condition : $f501a eq "foo"
@@ -2528,7 +2318,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
     delete : f501c
     ---
     
-- L'ordre dans lequel les actions sont écrites n'a pas d'importance. Les actions seront toujours exécutée dans l'ordre suivant:
+- L'ordre dans lequel les actions sont Ã©crites n'a pas d'importance. Les actions seront toujours exÃ©cutÃ©e dans l'ordre suivant:
 
 =over 4
 
@@ -2550,7 +2340,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =back
 
-- B<Chaque règle peut être divisée en sous-règles> (séparées par - ) similaires à un 'if,elsif' ou un script 'switch,case'. Si la condition de la première sous-règle est fausse, la condition de la sous-règle suivante est testée. Lorsque la condition d'une sous-règle est vraie (ou si un sous-règle n'a pas de condition), les sous-règles suivantes ne sont pas lues.
+- B<Chaque rÃ¨gle peut Ãªtre divisÃ©e en sous-rÃ¨gles> (sÃ©parÃ©es par - ) similaires Ã  un 'if,elsif' ou un script 'switch,case'. Si la condition de la premiÃ¨re sous-rÃ¨gle est fausse, la condition de la sous-rÃ¨gle suivante est testÃ©e. Lorsque la condition d'une sous-rÃ¨gle est vraie (ou si un sous-rÃ¨gle n'a pas de condition), les sous-rÃ¨gles suivantes ne sont pas lues.
 
     ---
     -
@@ -2565,10 +2355,10 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
      create :
       f502a : value else
     ---
-    # Si une sous-règle n'a pas de condition, elle sera considérée
-    # comme un 'else' (les sous-règles suivantes ne seront pas lues)
+    # Si une sous-rÃ¨gle n'a pas de condition, elle sera considÃ©rÃ©e
+    # comme un 'else' (les sous-rÃ¨gles suivantes ne seront pas lues)
 
-- Il n'est pas permis de définir plus d'une action similaire dans une seule (sous-)règle. Cependant, il reste possible d'exécuter une action similaire plusieurs fois dans une seule règle (se référer à la syntaxe spécifique à chaque action pour voir comment faire cela):
+- Il n'est pas permis de dÃ©finir plus d'une action similaire dans une seule (sous-)rÃ¨gle. Cependant, il reste possible d'exÃ©cuter une action similaire plusieurs fois dans une seule rÃ¨gle (se rÃ©fÃ©rer Ã  la syntaxe spÃ©cifique Ã  chaque action pour voir comment faire cela):
 
 .   Cela n'est B<pas> permis:
 
@@ -2583,9 +2373,9 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
      - f501b
      - f501c
 
-=head3 - un petit script pour tester vos règles
+=head3 - un petit script pour tester vos rÃ¨gles
 
-- B<Il est fortement recommendé de tester chaque règle sur une notice de test avant de l'utiliser sur un large lot de notices>. Vous pouvez créer un script (par exemple C<< test.pl >>) avec le contenu ci-dessous (que vous adapterez pour tester vos règles) et le lancer avec C<< perl ./test.pl >> :
+- B<Il est fortement recommendÃ© de tester chaque rÃ¨gle sur une notice de test avant de l'utiliser sur un large lot de notices>. Vous pouvez crÃ©er un script (par exemple C<< test.pl >>) avec le contenu ci-dessous (que vous adapterez pour tester vos rÃ¨gles) et le lancer avec C<< perl ./test.pl >> :
 
     #!/usr/bin/perl
     use MARC::Transform;
@@ -2606,17 +2396,17 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =head3 - Dans les actions
 
-- Les noms des champs et des sous-champs sont très importants: 
+- Les noms des champs et des sous-champs sont trÃ¨s importants: 
 
 =over 4
 
 =item * Ils doivent commencer par la lettre B<f> suivi des B<3 chiffres> du nom du champ (par exemple f099), suivi, pour les sous-champs, par leur B<lettre ou chiffre> (par exemple B<f501b>).
 
-=item * Les noms des champs de contrôle commencent par la lettre B<f> suivi par B<3 chiffres inférieur à 010> suivi par B<underscore> (par exemple B<f005_>). 
+=item * Les noms des champs de contrÃ´le commencent par la lettre B<f> suivi par B<3 chiffres infÃ©rieur Ã  010> suivi par B<underscore> (par exemple B<f005_>). 
 
 =item * B<Les indicateurs> doivent commencer par la lettre B<i>, suivi des B<3 chiffres> du nom du champ suivi par la position de l'indicateur(B<1 or 2>) (par exemple B<i0991>).
 
-=item * Dans les actions, vous pouvez définir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se réfère au champ de la condition (si nous n'avons défini qu'un seul champ à tester dans la condition), ou au champ en cours de traitement dans l'action:
+=item * Dans les actions, vous pouvez dÃ©finir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se rÃ©fÃ¨re au champ de la condition (si nous n'avons dÃ©fini qu'un seul champ Ã  tester dans la condition), ou au champ en cours de traitement dans l'action:
 
     ---
     condition : $f501a eq "foo"
@@ -2633,20 +2423,20 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =over 4
 
-=item * Dans les conditions la convention de nommage des champs et des sous-champs suit les B<mêmes règles que les actions>, mais ils doivent être B<précédés du symbole dollar $> (par exemple C<$f110c> pour un sous-champ ou C<$i0991> pour un indicateur).
+=item * Dans les conditions la convention de nommage des champs et des sous-champs suit les B<mÃªmes rÃ¨gles que les actions>, mais ils doivent Ãªtre B<prÃ©cÃ©dÃ©s du symbole dollar $> (par exemple C<$f110c> pour un sous-champ ou C<$i0991> pour un indicateur).
 
-=item * Le leader de la notice peut être défini avec B<$ldr>.
+=item * Le leader de la notice peut Ãªtre dÃ©fini avec B<$ldr>.
 
-=item * Il est possible de tester la valeur d'un seul caractère dans les sous-champs ou le leader. Pour faire cela, vous devez ajouter la B<position de ce caractère à partir de 0 et jusqu'à 99>:
+=item * Il est possible de tester la valeur d'un seul caractÃ¨re dans les sous-champs ou le leader. Pour faire cela, vous devez ajouter la B<position de ce caractÃ¨re Ã  partir de 0 et jusqu'Ã  99>:
 
-    #pour tester le 3e caractère du leader et le 12e dans le 501$a:
+    #pour tester le 3e caractÃ¨re du leader et le 12e dans le 501$a:
     condition : $ldr2 eq "t" and $f501a11 eq "z"
 
 =back
 
 =head3 - Lancer des actions uniquement sur les champs de la condition
 
-Nous avons déjà vu que pour se référer au champ de la condition dans les actions, il est possible de définir les sous-champs directement. Cela fonctionne uniquement si nous avons définis seulement un champ à tester dans la condition. Si nous avons plus d'un champ dans la condition, pour s'y référer, leurs B<noms doivent aussi commencer par $> (cela fonctionne également avec un champ unique dans la condition).
+Nous avons dÃ©jÃ  vu que pour se rÃ©fÃ©rer au champ de la condition dans les actions, il est possible de dÃ©finir les sous-champs directement. Cela fonctionne uniquement si nous avons dÃ©finis seulement un champ Ã  tester dans la condition. Si nous avons plus d'un champ dans la condition, pour s'y rÃ©fÃ©rer, leurs B<noms doivent aussi commencer par $> (cela fonctionne Ã©galement avec un champ unique dans la condition).
 
 Par exemple, si vous testez la valeur du $f501a dans la condition:
 
@@ -2660,13 +2450,13 @@ Par exemple, si vous testez la valeur du $f501a dans la condition:
     condition : $f501a eq "foo" and defined $f501b
     delete : f501c
 
-- cela va créer un nouveau champ '701' avec un sous-champ 'c' contenant la valeur du sous-champ 501$a défini dans la condition:
+- cela va crÃ©er un nouveau champ '701' avec un sous-champ 'c' contenant la valeur du sous-champ 501$a dÃ©fini dans la condition:
 
     condition : defined $f501a
     create :
      f701c : $f501a
 
-B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition, ces sous-champs doivent être définis dans la condition:
+B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition, ces sous-champs doivent Ãªtre dÃ©finis dans la condition:
 
 - cela ne fonctionne B<pas>:
 
@@ -2674,19 +2464,19 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
     create :
      f701a : $f501c
      
-- cela fonctionne (crée un nouveau champ '701' avec un sous-champ 'a' contenant la valeur du sous-champ 501$c de la condition):
+- cela fonctionne (crÃ©e un nouveau champ '701' avec un sous-champ 'a' contenant la valeur du sous-champ 501$c de la condition):
 
     condition : $f501a eq "foo" and defined $f501c
     create :
      f701a : $f501c
 
-- Cette restriction est vrai uniquement pour les valeurs des sous-champs mais pas pour spécifier les champs affectés par une action : l'exemple ci-dessous va créer un nouveau sous-champ 'c' B<dans un champ défini dans la condition>.
+- Cette restriction est vrai uniquement pour les valeurs des sous-champs mais pas pour spÃ©cifier les champs affectÃ©s par une action : l'exemple ci-dessous va crÃ©er un nouveau sous-champ 'c' B<dans un champ dÃ©fini dans la condition>.
 
     condition : $f501a eq "foo" and $f110a == 2
     create :
      $f501c : new subfield value
     # Si il y a de multiples champs '501', seuls ceux ayant un
-    # sous-champ 'a'='foo' auront un nouveau sous-champ 'c' créé
+    # sous-champ 'a'='foo' auront un nouveau sous-champ 'c' crÃ©Ã©
 
 =head2 - Actions
 
@@ -2694,7 +2484,7 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
 
 =over 4
 
-=item * Comme son nom l'indique, cette action vous permet de créer de nouveaux champs et sous-champs.
+=item * Comme son nom l'indique, cette action vous permet de crÃ©er de nouveaux champs et sous-champs.
 
 =item * Syntaxe:
 
@@ -2702,13 +2492,13 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
     create :
      <nom de sous-champ> : <valeur>
     
-    # pour créer deux sous-champs (dans un champ) avec le même nom:
+    # pour crÃ©er deux sous-champs (dans un champ) avec le mÃªme nom:
     create :
      <nom de sous-champ> :
       - <valeur>
       - <valeur>
     
-    # avancée:
+    # avancÃ©e:
     create :
      <nom de champ> :
       <nom de sous-champ> : 
@@ -2732,14 +2522,14 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
        - second 'a' subfield of this new 600 field
       b : the 600b value
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _b1
            _cbar
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _b1
@@ -2752,7 +2542,7 @@ résultat (avec C<< $record->as_formatted >>):
            _asecond 'a' subfield of this new 600 field
            _bthe 600b value
 
-=item * faites attention: vous devez utilisez des listes pour créer plusieurs sous-champs avec le même nom dans un champ:
+=item * faites attention: vous devez utilisez des listes pour crÃ©er plusieurs sous-champs avec le mÃªme nom dans un champ:
 
     # ne fonctionne pas:
     create :
@@ -2765,7 +2555,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action vous permet de mettre à jour les champs B<existants>. Cette action met à jour tous les sous-champs spécifiés de tous les champs spécifiés (si le champ spécifié est un champ de la condition, il sera le seul à être mis à jour )
+=item * Cette action vous permet de mettre Ã  jour les champs B<existants>. Cette action met Ã  jour tous les sous-champs spÃ©cifiÃ©s de tous les champs spÃ©cifiÃ©s (si le champ spÃ©cifiÃ© est un champ de la condition, il sera le seul Ã  Ãªtre mis Ã  jour )
 
 =item * Syntaxe:
 
@@ -2773,7 +2563,7 @@ résultat (avec C<< $record->as_formatted >>):
     update :
      <nom de sous-champ> : <valeur>
     
-    # avancée:
+    # avancÃ©e:
     update :
      <nom de sous-champ> : <valeur>
      <nom de sous-champ> : <valeur>
@@ -2792,7 +2582,7 @@ résultat (avec C<< $record->as_formatted >>):
       a : updated value of all 'a' subfields into all '501' fields
       b : $f502a is the 502a condition's field's value
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2807,7 +2597,7 @@ résultat (avec C<< $record->as_formatted >>):
     502    _apoto
     502    _btruc
            _cbidule
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _aupdated value of all 'a' subfields into all '501' fields
            _bsecond a is the 502a condition's field's value
@@ -2827,9 +2617,9 @@ résultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action est B<identique à update>, excepté qu'elle met à jour seulement le B<premier> sous-champ des champs spécifiés
+=item * Cette action est B<identique Ã  update>, exceptÃ© qu'elle met Ã  jour seulement le B<premier> sous-champ des champs spÃ©cifiÃ©s
 
-=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
+=item * B<Syntaxe>: exceptÃ© pour le nom de l'action, c'est la B<mÃªme que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2842,7 +2632,7 @@ résultat (avec C<< $record->as_formatted >>):
       a : updated value of first 'a' subfields into all '501' fields
       b : $f502a is the value of 502a conditionnal field
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2857,7 +2647,7 @@ résultat (avec C<< $record->as_formatted >>):
     502    _apoto
     502    _btruc
            _cbidule
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _aupdated value of first 'a' subfields into all '501' fields
            _bsecond a is the value of 502a conditionnal field
@@ -2877,11 +2667,11 @@ résultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Si le B<sous-champ spécifié existe>: ces actions sont identiques aux actions B<update> et updatefirst
+=item * Si le B<sous-champ spÃ©cifiÃ© existe>: ces actions sont identiques aux actions B<update> et updatefirst
 
-=item * Si le B<sous-champ spécifié n'existe pas>: ces actions sont identiques à l'action B<create>
+=item * Si le B<sous-champ spÃ©cifiÃ© n'existe pas>: ces actions sont identiques Ã  l'action B<create>
 
-=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
+=item * B<Syntaxe>: exceptÃ© pour le nom de l'action, c'est la B<mÃªme que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2894,7 +2684,7 @@ résultat (avec C<< $record->as_formatted >>):
       a : '503a' value's
       b : $f502a is the 502a condition's value
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2909,7 +2699,7 @@ résultat (avec C<< $record->as_formatted >>):
            _bbbb
            _ccc1
            _ccc2
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _b1
@@ -2925,7 +2715,7 @@ résultat (avec C<< $record->as_formatted >>):
            _c'502c' value's
     503    _a'503a' value's
            _bsecond a is the 502a condition's value
-    --notice transformée si nous avions utilisé forceupdatefirst--
+    --notice transformÃ©e si nous avions utilisÃ© forceupdatefirst--
     LDR                         
     501    _afoo
            _b1
@@ -2955,7 +2745,7 @@ résultat (avec C<< $record->as_formatted >>):
     # basique:
     delete : <nom de champ ou sous-champ>
     
-    # avancée:
+    # avancÃ©e:
     delete :
      - <nom de champ ou sous-champ>
      - <nom de champ ou sous-champ>
@@ -2976,7 +2766,7 @@ résultat (avec C<< $record->as_formatted >>):
      - f503
      - f504a
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2990,7 +2780,7 @@ résultat (avec C<< $record->as_formatted >>):
     504    _aata1
            _aata2
            _btbbt
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _abar
     504    _btbbt
@@ -3008,7 +2798,7 @@ résultat (avec C<< $record->as_formatted >>):
     # basique:
     duplicatefield : <nom de champ> > <nom de champ>
     
-    # avancée:
+    # avancÃ©e:
     duplicatefield :
      - <nom de champ> > <nom de champ>
      - <nom de champ> > <nom de champ>
@@ -3028,7 +2818,7 @@ résultat (avec C<< $record->as_formatted >>):
      - $f501 > f402
      - f005 > f006
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -3040,7 +2830,7 @@ résultat (avec C<< $record->as_formatted >>):
     501 12 _abar
            _bbb1
            _bbb2
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     005     controlfield_content2
     005     controlfield_content1
@@ -3068,16 +2858,16 @@ résultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action vous permet de définir du code Perl qui sera exécuté avec C<< eval >>
+=item * Cette action vous permet de dÃ©finir du code Perl qui sera exÃ©cutÃ© avec C<< eval >>
 
-Vous pouvez executer des fonctions écrites directement dans le YAML ( pour des détails sur l'écriture de subs perl dans le YAML, référez vous au chapitre suivant: Utiliser des fonctions Perl et des tables des correspondance)
+Vous pouvez executer des fonctions Ã©crites directement dans le YAML ( pour des dÃ©tails sur l'Ã©criture de subs perl dans le YAML, rÃ©fÃ©rez vous au chapitre suivant: Utiliser des fonctions Perl et des tables des correspondance)
 
 =item * Syntaxe:
 
     # basique:
     execute : <code perl>
     
-    # avancée:
+    # avancÃ©e:
     execute :
      - <code perl>
      - <code perl>
@@ -3097,7 +2887,7 @@ Vous pouvez executer des fonctions écrites directement dans le YAML ( pour des d
      subs : >
         sub warnfoo { my $string = shift;warn $string; }
 
-résultat (dans stderr):
+rÃ©sultat (dans stderr):
 
     f501a eq bar at (eval 30) line 6, <$yamls> line 1.
     barbar at (eval 30) line 7, <$yamls> line 1.
@@ -3107,21 +2897,21 @@ résultat (dans stderr):
 
 =head2 - Utiliser des fonctions Perl et des tables des correspondance
 
-Vous pouvez utiliser des fonctions Perl (B<subs>) et des tables de correspondance (B<LUT> pour LookUp Tables) pour définir avec une plus grande flexibilité les valeurs qui vont être créées ou mises à jour avec les actions: create, forceupdate, forceupdatefirst, update and updatefirst.
+Vous pouvez utiliser des fonctions Perl (B<subs>) et des tables de correspondance (B<LUT> pour LookUp Tables) pour dÃ©finir avec une plus grande flexibilitÃ© les valeurs qui vont Ãªtre crÃ©Ã©es ou mises Ã  jour avec les actions: create, forceupdate, forceupdatefirst, update and updatefirst.
 
-Ces fonctions (et tables des correspondance) peuvent être B<écrites dans une règle> (dans ce cas elles ne peuvent être utilisée que par cette règle) B<ou après la dernière règle> ( après le dernier ---, elles peuvent alors être utilisées dans toutes les règles: B<global_subs> et B<global_LUT> ).
+Ces fonctions (et tables des correspondance) peuvent Ãªtre B<Ã©crites dans une rÃ¨gle> (dans ce cas elles ne peuvent Ãªtre utilisÃ©e que par cette rÃ¨gle) B<ou aprÃ¨s la derniÃ¨re rÃ¨gle> ( aprÃ¨s le dernier ---, elles peuvent alors Ãªtre utilisÃ©es dans toutes les rÃ¨gles: B<global_subs> et B<global_LUT> ).
 
 =head3 - Variables
 
-Quatre types de variables peuvent être utilisés:
+Quatre types de variables peuvent Ãªtre utilisÃ©s:
 
-=head4 - $this, et les éléments de la condition
+=head4 - $this, et les Ã©lÃ©ments de la condition
 
 =over 4
 
-=item * les variables pointant sur la valeur des sous-champs de la condition sont celles que nous avons déjà vu dans le chapitre 'Lancer des actions uniquement sur les champs de la condition' (par exemple B<$f110c>)
+=item * les variables pointant sur la valeur des sous-champs de la condition sont celles que nous avons dÃ©jÃ  vu dans le chapitre 'Lancer des actions uniquement sur les champs de la condition' (par exemple B<$f110c>)
 
-=item * B<$this>: c'est la variable à utiliser pour pointer sur la B<valeur du sous-champ en cours>. $this peut aussi être utilisée dans une sub ou une LUT.
+=item * B<$this>: c'est la variable Ã  utiliser pour pointer sur la B<valeur du sous-champ en cours>. $this peut aussi Ãªtre utilisÃ©e dans une sub ou une LUT.
 
 Exemple (N.B.: la sub 'fromo2e' convertit les 'o' en 'e'):
 
@@ -3137,14 +2927,14 @@ Exemple (N.B.: la sub 'fromo2e' convertit les 'o' en 'e'):
      subs: >
         sub fromo2e { my $string=shift; $string =~ s/o/e/g; $string; }
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _bboo
            _ddoo
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _bbee
@@ -3155,7 +2945,7 @@ résultat (avec C<< $record->as_formatted >>):
 
 =head4 - $mth
 
-B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisable en écriture (dans les subs et les global_subs) et en lecture. Cela permet d'intéragir avec le script qui appelle MARC::Transform.
+B<$mth> est l'Ã©ventuel hashref passÃ© comme troisiÃ¨me argument. Il est utilisable en Ã©criture (dans les subs et les global_subs) et en lecture. Cela permet d'intÃ©ragir avec le script qui appelle MARC::Transform.
 
 =over 4
 
@@ -3190,7 +2980,7 @@ B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisable
     $record = MARC::Transform->new($record,$yaml,\%mth);
     print "\n--transformed record-- ".$mth{"inc"}." : \n". $record->as_formatted ."\n";
 
-résultat :
+rÃ©sultat :
 
     --init record--
     LDR optionnal leader
@@ -3207,22 +2997,22 @@ B<$record> est l'objet MARC::Record en cours de traitement.
 
 =head3 - subs
 
-=head4 - A l'intérieur des règles
+=head4 - A l'intÃ©rieur des rÃ¨gles
 
 =over 4
 
 =item *  Syntaxe:
 
-    #règle entière:
+    #rÃ¨gle entiÃ¨re:
     ---
     -
-     <syntaxe d'invocation de la méthode dans les valeurs des actions>
+     <syntaxe d'invocation de la mÃ©thode dans les valeurs des actions>
     -
      subs: >
         <une ou plusieurs subs Perl>
     ---
     
-    # syntaxe d'invocation de la méthode:
+    # syntaxe d'invocation de la mÃ©thode:
     \&<sub name>("<arguments>")
 
 =item * Exemple:
@@ -3257,13 +3047,13 @@ B<$record> est l'objet MARC::Record en cours de traitement.
         }
         
         sub trim {
-            # Cette fonction enlève ",00" à la fin d'une chaîne
+            # Cette fonction enlÃ¨ve ",00" Ã  la fin d'une chaÃ®ne
             my $in = shift;
             $in=~s/,00$//;
             return $in;
         }
 
-résultat (avec C<< $record->as_formatted >>):
+rÃ©sultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -3271,7 +3061,7 @@ résultat (avec C<< $record->as_formatted >>):
            _b8/12/10
            _cboo
            _d40,00
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _b2010-12-08
@@ -3290,7 +3080,7 @@ résultat (avec C<< $record->as_formatted >>):
     global_subs: >
         <une ou plusieurs subs Perl>
     
-    # syntaxe d'invocation de la méthode
+    # syntaxe d'invocation de la mÃ©thode
     \&<sub name>("<arguments>")
 
 =item * Exemple:
@@ -3307,20 +3097,20 @@ résultat (avec C<< $record->as_formatted >>):
      }
      
      sub trim {
-         # Cette fonction enlève ",00" à la fin d'une chaîne
+         # Cette fonction enlÃ¨ve ",00" Ã  la fin d'une chaÃ®ne
          my $in = shift;
          $in=~s/,00$//;
          return $in;
      }
 
-résultat (avec C<< $record->as_formatted >> ):
+rÃ©sultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _bbar
            _c40,00
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _afoo
            _bMARC-8
@@ -3330,29 +3120,29 @@ résultat (avec C<< $record->as_formatted >> ):
 
 =head3 - LUT
 
-Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiée (à moins que vous n'ayez définit une valeur par défaut avec C<< _default_value_ >> ).
+Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiÃ©e (Ã  moins que vous n'ayez dÃ©finit une valeur par dÃ©faut avec C<< _default_value_ >> ).
 
-Si vous voulez utiliser plus d'une table de correspondance dans une règle, vous devez utiliser une global_LUT car elle différencie les tables avec des titres.
+Si vous voulez utiliser plus d'une table de correspondance dans une rÃ¨gle, vous devez utiliser une global_LUT car elle diffÃ©rencie les tables avec des titres.
 
-=head4 - A l'intérieur des règles
+=head4 - A l'intÃ©rieur des rÃ¨gles
 
 =over 4
 
 =item *  Syntaxe:
 
-    #règle entière:
+    #rÃ¨gle entiÃ¨re:
     ---
     -
      <syntaxe d'invocation de la LUT dans les valeurs des actions>
     -
      LUT :
-       <valeur de départ> : <valeur finale>
-       <valeur de départ> : <valeur finale>
-       _default_value_ : valeur par défaut optionnelle
+       <valeur de dÃ©part> : <valeur finale>
+       <valeur de dÃ©part> : <valeur finale>
+       _default_value_ : valeur par dÃ©faut optionnelle
     ---
     
     # syntaxe d'invocation de la LUT:
-    \&LUT("<valeur de départ>")
+    \&LUT("<valeur de dÃ©part>")
 
 =item * Exemple:
 
@@ -3369,13 +3159,13 @@ Si vous voulez utiliser plus d'une table de correspondance dans une règle, vous 
       2 : second
       bar : openbar
 
-résultat (avec C<< $record->as_formatted >> ):
+rÃ©sultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _bbar
            _c1
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _bbar
            _cfirst
@@ -3392,15 +3182,15 @@ résultat (avec C<< $record->as_formatted >> ):
     ---
     global_LUT:
      <titre de la LUT> :
-      <valeur de départ> : <valeur finale>
-      <valeur de départ> : <valeur finale>
-      _default_value_ : valeur par défaut optionnelle
+      <valeur de dÃ©part> : <valeur finale>
+      <valeur de dÃ©part> : <valeur finale>
+      _default_value_ : valeur par dÃ©faut optionnelle
      <titre de la LUT> :
-      <valeur de départ> : <valeur finale>
-      <valeur de départ> : <valeur finale>
+      <valeur de dÃ©part> : <valeur finale>
+      <valeur de dÃ©part> : <valeur finale>
     
     # syntaxe d'invocation de la global_LUT:
-    \&LUT("<valeur de départ>","<titre de la LUT>")
+    \&LUT("<valeur de dÃ©part>","<titre de la LUT>")
 
 =item * Exemple:
 
@@ -3420,7 +3210,7 @@ résultat (avec C<< $record->as_formatted >> ):
       1 : one
       2 : two
 
-résultat (avec C<< $record->as_formatted >> ):
+rÃ©sultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
@@ -3428,7 +3218,7 @@ résultat (avec C<< $record->as_formatted >> ):
            _a3
            _bfoo
            _cSF
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _aone
            _a3
@@ -3441,7 +3231,7 @@ résultat (avec C<< $record->as_formatted >> ):
 
 =over 4
 
-=item *  B<NB : >si vous appelez MARC::Transform avec le troisième paramètre, le module en rempli la clé nommée C<< _defaultLUT_to_mth_ >> au cas où vous souhaiteriez conserver, dans le script d'appel, une trace des valeurs et types (nommé C<< lookuptableforthis >> pour les LUT non globales) sans correspondance. C<< $$mth{"_defaultLUT_to_mth_"} >> est vidée à chaque fois que MARC::Transform->new est appelé.
+=item *  B<NB : >si vous appelez MARC::Transform avec le troisiÃ¨me paramÃ¨tre, le module en rempli la clÃ© nommÃ©e C<< _defaultLUT_to_mth_ >> au cas oÃ¹ vous souhaiteriez conserver, dans le script d'appel, une trace des valeurs et types (nommÃ© C<< lookuptableforthis >> pour les LUT non globales) sans correspondance. C<< $$mth{"_defaultLUT_to_mth_"} >> est vidÃ©e Ã  chaque fois que MARC::Transform->new est appelÃ©.
 
 =item * Si nous rappellons l'exemple ci-dessus avec :
 
@@ -3462,7 +3252,7 @@ cela renverra sur la sortie standard :
                           ]
             };
 
-essayez ceci si vous souhaitez récupérer le contenu de $mth{"_defaultLUT_to_mth_"} à la place de la ligne contenant Data::Dumper::Dumper :
+essayez ceci si vous souhaitez rÃ©cupÃ©rer le contenu de $mth{"_defaultLUT_to_mth_"} Ã  la place de la ligne contenant Data::Dumper::Dumper :
 
     foreach my $k (keys(%{$mth{"_defaultLUT_to_mth_"}}))
     {
@@ -3472,15 +3262,15 @@ essayez ceci si vous souhaitez récupérer le contenu de $mth{"_defaultLUT_to_mth_
 
 =back
 
-=head1 - Dernières astuces et un gros exemple de YAML
+=head1 - DerniÃ¨res astuces et un gros exemple de YAML
 
 =over 4
 
-=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple à corriger. Si vous avez défini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
+=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple Ã  corriger. Si vous avez dÃ©fini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
 
-=item * Restriction: le cas spécifique des guillemets doubles (") et du symbole dollar ($): 
+=item * Restriction: le cas spÃ©cifique des guillemets doubles (") et du symbole dollar ($): 
 
-Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser dans un contexte de chaîne de caractère, vous devrez les remplacer  dans le YAML par C<#_dbquote_#> (pour ") et C<#_dollars_#> (pour $):
+Dans le YAML, ces caractÃ¨res sont interprÃ©tÃ©s diffÃ©remment. Pour les utiliser dans un contexte de chaÃ®ne de caractÃ¨re, vous devrez les remplacer  dans le YAML par C<#_dbquote_#> (pour ") et C<#_dollars_#> (pour $):
 
 . Exemple:
 
@@ -3489,19 +3279,19 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser da
     create :
      f604a : "#_dbquote_#$f501a#_dbquote_# contain a #_dollars_# sign"
 
-. résultat (avec C<< $record->as_formatted >> ):
+. rÃ©sultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _aI want "$"
-    --notice transformée--
+    --notice transformÃ©e--
     LDR                         
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
 
-=item * Exemple: n'hésitez pas à copier les exemples de cette documentation. Faite attention car j'ai ajouté quatre caractères espace au début de chaque ligne des exemples pour qu'ils soient mieux affichés par l'interpréteur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractères de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
+=item * Exemple: n'hÃ©sitez pas Ã  copier les exemples de cette documentation. Faite attention car j'ai ajoutÃ© quatre caractÃ¨res espace au dÃ©but de chaque ligne des exemples pour qu'ils soient mieux affichÃ©s par l'interprÃ©teur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractÃ¨res de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
 
-=item * Ce yaml a été appellé comme ceci: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
+=item * Ce yaml a Ã©tÃ© appellÃ© comme ceci: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
 
     ---
     condition : $f501a eq "foo"
@@ -3586,7 +3376,7 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser da
       1 : one
       2 : two
 
-résultat (avec C<< $record->as_formatted >> ) :
+rÃ©sultat (avec C<< $record->as_formatted >> ) :
 
     --notice d'origine--
     LDR optionnal leader
@@ -3612,7 +3402,7 @@ résultat (avec C<< $record->as_formatted >> ) :
            _bbar
            _ctruc
     
-    --notice transformée--
+    --notice transformÃ©e--
     LDR optionnalaleader
     006     UTF-8
     007     controlfield_content8b
@@ -3665,11 +3455,11 @@ The definitive source for all things MARC.
 
 =head1 - AUTEUR
 
-Stéphane Delaune, (delaune.stephane at gmail.com)
+StÃ©phane Delaune, (delaune.stephane at gmail.com)
 
 =head1 - COPYRIGHT
 
-Copyright 2011-2012 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2013 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
