@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.003002';
+our $VERSION = '0.003003';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -161,13 +161,13 @@ sub transform {
     if (ref($field) eq "MARC::Field") {
         #print "\n------------$ttype------------ : \n".Data::Dumper::Dumper ($subfields);
         foreach my $tag(keys(%$subfields)) {
-            if ( $tag eq 'i1' or  $tag eq 'Âµ') {
+            if ( $tag eq 'i1' or  $tag eq 'µ') {
                 #print "\n------------$ttype------------ : \n";
                 $this=$field->indicator(1);
                 my $finalvalue=parsestringactions($$subfields{$tag});
                 $field->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
             }
-            elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
+            elsif ( $tag eq 'i2' or  $tag eq '£') {
                 $this=$field->indicator(2);
                 my $finalvalue=parsestringactions($$subfields{$tag});
                 $field->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
@@ -257,7 +257,7 @@ sub transform {
             }
             my $newfield = MARC::Field->new( $field->tag(), $field->indicator(1), $field->indicator(2), @usubfields );
             foreach my $tag(keys(%$subfields)) {
-                if($tag ne 'i1' and $tag ne 'Âµ' and $tag ne 'i2' and $tag ne 'Â£' and !defined($newfield->subfield( $tag )) ) {
+                if($tag ne 'i1' and $tag ne 'µ' and $tag ne 'i2' and $tag ne '£' and !defined($newfield->subfield( $tag )) ) {
                     if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
                         $this="";
                         my $finalvalue=parsestringactions($$subfields{$tag});
@@ -277,12 +277,12 @@ sub transform {
             if ( defined $record->field($field) ) {
                 for my $updatefield ( $record->field($field) ) {
                     foreach my $tag(keys(%$subfields)) {
-                        if ( $tag eq 'i1' or  $tag eq 'Âµ') {
+                        if ( $tag eq 'i1' or  $tag eq 'µ') {
                             $this=$updatefield->indicator(1);
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $updatefield->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                         }
-                        elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
+                        elsif ( $tag eq 'i2' or  $tag eq '£') {
                             $this=$updatefield->indicator(2);
                             my $finalvalue=parsestringactions($$subfields{$tag});
                             $updatefield->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
@@ -331,7 +331,7 @@ sub transform {
                         }
                         my $newfield = MARC::Field->new( $updatefield->tag(), $updatefield->indicator(1), $updatefield->indicator(2), @usubfields );
                         foreach my $tag(keys(%$subfields)) {
-                            if($tag ne 'i1' and $tag ne 'Âµ' and $tag ne 'i2' and $tag ne 'Â£' and !defined($newfield->subfield( $tag )) ) {
+                            if($tag ne 'i1' and $tag ne 'µ' and $tag ne 'i2' and $tag ne '£' and !defined($newfield->subfield( $tag )) ) {
                                 if( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" ) {
                                     $this="";
                                     my $finalvalue=parsestringactions($$subfields{$tag});
@@ -358,11 +358,11 @@ sub transform {
             }
             
             foreach my $tag(keys(%$subfields)) {
-                if ( $tag eq 'i1' or  $tag eq 'Âµ') {
+                if ( $tag eq 'i1' or  $tag eq 'µ') {
                     my $finalvalue=parsestringactions($$subfields{$tag});
                     $newfield->update( ind1 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                 }
-                elsif ( $tag eq 'i2' or  $tag eq 'Â£') {
+                elsif ( $tag eq 'i2' or  $tag eq '£') {
                     my $finalvalue=parsestringactions($$subfields{$tag});
                     $newfield->update( ind2 => $finalvalue ) if ( ref($$subfields{$tag}) eq "" or ref($$subfields{$tag}) eq "SCALAR" );
                 }
@@ -527,9 +527,9 @@ sub parsesubaction {
                     elsif($kint=~/^\$i(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
-                        $stag='Âµ';
-                        $stag='Âµ' if($2 eq "1");
-                        $stag='Â£' if($2 eq "2");
+                        $stag='µ';
+                        $stag='µ' if($2 eq "1");
+                        $stag='£' if($2 eq "2");
                     }
                     elsif($kint=~/^f(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
@@ -537,15 +537,15 @@ sub parsesubaction {
                     }
                     elsif($kint=~/^i(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
-                        $stag='Âµ';
-                        $stag='Âµ' if($2 eq "1");
-                        $stag='Â£' if($2 eq "2");
+                        $stag='µ';
+                        $stag='µ' if($2 eq "1");
+                        $stag='£' if($2 eq "2");
                     }
                     elsif($kint=~/^i(\d)$/) {
                         $ftag='$$currentfield';
-                        $stag='Âµ';
-                        $stag='Âµ' if($1 eq "1");
-                        $stag='Â£' if($1 eq "2");
+                        $stag='µ';
+                        $stag='µ' if($1 eq "1");
+                        $stag='£' if($1 eq "2");
                         $boolin=1;
                     }
                     elsif($kint=~/^(\w)$/) {
@@ -577,9 +577,9 @@ sub parsesubaction {
                     elsif($kint=~/^\$i(\d{3})(\w)$/) {
                         $boolin=1;
                         $ftag='$f'.$1;
-                        $stag='Âµ';
-                        $stag='Âµ' if($2 eq "1");
-                        $stag='Â£' if($2 eq "2");
+                        $stag='µ';
+                        $stag='µ' if($2 eq "1");
+                        $stag='£' if($2 eq "2");
                     }
                     elsif($kint=~/^f(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
@@ -587,9 +587,9 @@ sub parsesubaction {
                     }
                     elsif($kint=~/^i(\d{3})(\w)$/) {
                         $ftag='"'.$1.'"';
-                        $stag='Âµ';
-                        $stag='Âµ' if($2 eq "1");
-                        $stag='Â£' if($2 eq "2");
+                        $stag='µ';
+                        $stag='µ' if($2 eq "1");
+                        $stag='£' if($2 eq "2");
                     }
                     elsif($kint=~/^(\w)$/) {
                         $ftag='$$currentfield';
@@ -903,7 +903,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.003002
+Version 0.003003
 
 =head1 SYNOPSIS
 
@@ -1899,7 +1899,7 @@ result (with C<< $record->as_formatted >> ):
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
-      _default_value_ : valeur par dÃ©faut optionnelle
+      _default_value_ : valeur par défaut optionnelle
      <LUT title> :
       <starting value> : <final value>
       <starting value> : <final value>
@@ -2161,6 +2161,8 @@ result (with C<< $record->as_formatted >> ) :
 
 =item * MARC::Field (L<http://search.cpan.org/perldoc?MARC::Field>)
 
+=item * MARC::Loader (L<http://search.cpan.org/perldoc?MARC::Loader>)
+
 =item * YAML (L<http://search.cpan.org/perldoc?YAML>)
 
 =item * Library Of Congress MARC pages (L<http://www.loc.gov/marc/>)
@@ -2188,7 +2190,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 - VERSION
 
-Version 0.003002
+Version 0.003003
 
 =head1 - SYNOPSIS
 
@@ -2196,7 +2198,7 @@ B<Perl script:>
 
     use MARC::Transform;
 
-    # Pour ce synopsis, nous crÃ©ons une petite notice:
+    # Pour ce synopsis, nous créons une petite notice:
     my $record = MARC::Record->new();
     $record->insert_fields_ordered( MARC::Field->new( 
                                     '501', '', '', 
@@ -2209,15 +2211,15 @@ B<Perl script:>
 
     # Nous transformons notre notice avec notre fichier de 
     # configuration YAML avec son chemin absolu ( ou
-    # relatif si il est appelÃ© depuis le bon endroit) :
+    # relatif si il est appelé depuis le bon endroit) :
     $record = MARC::Transform->new ( $record, "/path/conf.yaml" );
 
-    # Vous pouvez aussi Ã©crire votre YAML dans une variable:
+    # Vous pouvez aussi écrire votre YAML dans une variable:
     my $yaml="delete : f501d\n";
     # et l'utiliser pour transformer la notice:
     $record = MARC::Transform->new ( $record, $yaml );
 
-    print "\n--notice transformÃ©e--\n". $record->as_formatted ."\n";
+    print "\n--notice transformée--\n". $record->as_formatted ."\n";
 
 B<conf.yaml:>
 
@@ -2233,7 +2235,7 @@ B<conf.yaml:>
     ---
     delete : f501c
 
-B<RÃ©sultat> (avec C<< $record->as_formatted >>):
+B<Résultat> (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2242,7 +2244,7 @@ B<RÃ©sultat> (avec C<< $record->as_formatted >>):
            _cbar
            _dbor
     
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _bfirst
@@ -2252,9 +2254,9 @@ B<RÃ©sultat> (avec C<< $record->as_formatted >>):
 
 C'est un module Perl pour transformer une notice MARC en utilisant un fichier de configuration YAML.
 
-Il permet de B<crÃ©er> , B<mettre Ã  jour> , B<supprimer> , B<dupliquer> les champs et les sous-champs d'une notice. Vous pouvez aussi utiliser des B<scripts> et des B<tables de correspondance>. Vous pouvez prÃ©ciser des B<conditions> pour executer ces actions.
+Il permet de B<créer> , B<mettre à jour> , B<supprimer> , B<dupliquer> les champs et les sous-champs d'une notice. Vous pouvez aussi utiliser des B<scripts> et des B<tables de correspondance>. Vous pouvez préciser des B<conditions> pour executer ces actions.
 
-Toutes les conditions, actions, fonctions et tables de correspondance sont B<dÃ©finies dans le YAML>.
+Toutes les conditions, actions, fonctions et tables de correspondance sont B<définies dans le YAML>.
 
 MARC::Transform utilise MARC::Record.
 
@@ -2264,14 +2266,14 @@ MARC::Transform utilise MARC::Record.
 
     $record = MARC::Transform->new($record, "/path/conf.yaml" );
 
-C'est la seule mÃ©thode que vous utiliserez. Elle prend un objet MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi Ã©crire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
+C'est la seule méthode que vous utiliserez. Elle prend un objet MARC::Record et le chemin vers un YAML comme arguments. Vous pouvez aussi écrire votre YAML dans une variable et l'utiliser pour transformer la notice comme ceci : 
 
     my $yaml="delete : f501d\n";
     $record = MARC::Transform->new ( $record, $yaml );
 
-=head3 - RÃ©fÃ©rence Ã  un hash optionnel
+=head3 - Référence à un hash optionnel
 
-Comme nous allons le voir plus en dÃ©tail plus bas, il est possible d'ajouter comme troisiÃ¨me argument une rÃ©fÃ©rence Ã  un hash (nommÃ© $mth dans le yaml).
+Comme nous allons le voir plus en détail plus bas, il est possible d'ajouter comme troisième argument une référence à un hash (nommé $mth dans le yaml).
 
     my $record = MARC::Record->new(); my $hashref = {'var' => 'foo'};
     my $yaml = 'create :
@@ -2282,7 +2284,7 @@ Comme nous allons le voir plus en dÃ©tail plus bas, il est possible d'ajouter co
 
 =head3 - Mode verbeux
 
-Chaque rÃ¨gle du YAML (voir les bases plus bas pour comprendre ce qu'est une rÃ¨gle) gÃ©nÃ¨re un script qui est Ã©valuÃ©, dans la notice, pour chaque champ et sous-champ spÃ©cifiÃ© dans la condition (si il y a une condition). En ajoutant un quatriÃ¨me argument optionnel B<1> Ã  la mÃ©thode, elle affiche le script gÃ©nÃ©rÃ©. Cela peut Ãªtre utile pour comprendre ce qu'il se passe:
+Chaque règle du YAML (voir les bases plus bas pour comprendre ce qu'est une règle) génère un script qui est évalué, dans la notice, pour chaque champ et sous-champ spécifié dans la condition (si il y a une condition). En ajoutant un quatrième argument optionnel B<1> à la méthode, elle affiche le script généré. Cela peut être utile pour comprendre ce qu'il se passe:
 
     $record = MARC::Transform->new($record,"/path/conf.yaml",0,1);
 
@@ -2290,7 +2292,7 @@ Chaque rÃ¨gle du YAML (voir les bases plus bas pour comprendre ce qu'est une rÃ¨
 
 =head2 - Bases
 
-- B<Le YAML est divisÃ© en rÃ¨gle> (sÃ©parÃ©es par --- ), chaque rÃ¨gle est exÃ©cutÃ©e l'une aprÃ¨s l'autre, les rÃ¨gles sans condition sont toujours exÃ©cutÃ©es:
+- B<Le YAML est divisé en règle> (séparées par --- ), chaque règle est exécutée l'une après l'autre, les règles sans condition sont toujours exécutées:
 
     ---
     condition : $f501a eq "foo"
@@ -2300,16 +2302,16 @@ Chaque rÃ¨gle du YAML (voir les bases plus bas pour comprendre ce qu'est une rÃ¨
     delete : f501c
     ---
 
-- B<les conditions sont Ã©crites en perl>, ce qui permet une grande flexibilitÃ©. Elles doivent Ãªtre dÃ©finies avec C<condition : >
+- B<les conditions sont écrites en perl>, ce qui permet une grande flexibilité. Elles doivent être définies avec C<condition : >
 
     condition : ($f501a=~/foo/ and $f503a=~/bar/) or ($f102a eq "bib")
     # si un 501$a et un 503$a contiennent foo et bar, ou si un 102$a = bib
 
-- Les conditions testent les notices B<champ par champ> (uniquement sur les champs dÃ©finis dans la condition)
+- Les conditions testent les notices B<champ par champ> (uniquement sur les champs définis dans la condition)
 
 Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la notice, si notre condition est C<$f501a eq "foo" and $f501b eq "bar">, cette condition sera vrai uniquement si un champ '501' a un sous-champ 'a' = "foo" ET un sous-champ 'b' = 'bar' (elle sera fausse si il y a un champ '501' avec un sous-champ 'a' = "foo" et UN AUTRE champ '501' avec un sous-champ 'b' = "bar").
 
-- Il est possible de lancer plusieurs actions diffÃ©rentes dans une seule rÃ¨gle:
+- Il est possible de lancer plusieurs actions différentes dans une seule règle:
 
     ---
     condition : $f501a eq "foo"
@@ -2318,7 +2320,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
     delete : f501c
     ---
     
-- L'ordre dans lequel les actions sont Ã©crites n'a pas d'importance. Les actions seront toujours exÃ©cutÃ©e dans l'ordre suivant:
+- L'ordre dans lequel les actions sont écrites n'a pas d'importance. Les actions seront toujours exécutée dans l'ordre suivant:
 
 =over 4
 
@@ -2340,7 +2342,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =back
 
-- B<Chaque rÃ¨gle peut Ãªtre divisÃ©e en sous-rÃ¨gles> (sÃ©parÃ©es par - ) similaires Ã  un 'if,elsif' ou un script 'switch,case'. Si la condition de la premiÃ¨re sous-rÃ¨gle est fausse, la condition de la sous-rÃ¨gle suivante est testÃ©e. Lorsque la condition d'une sous-rÃ¨gle est vraie (ou si un sous-rÃ¨gle n'a pas de condition), les sous-rÃ¨gles suivantes ne sont pas lues.
+- B<Chaque règle peut être divisée en sous-règles> (séparées par - ) similaires à un 'if,elsif' ou un script 'switch,case'. Si la condition de la première sous-règle est fausse, la condition de la sous-règle suivante est testée. Lorsque la condition d'une sous-règle est vraie (ou si un sous-règle n'a pas de condition), les sous-règles suivantes ne sont pas lues.
 
     ---
     -
@@ -2355,10 +2357,10 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
      create :
       f502a : value else
     ---
-    # Si une sous-rÃ¨gle n'a pas de condition, elle sera considÃ©rÃ©e
-    # comme un 'else' (les sous-rÃ¨gles suivantes ne seront pas lues)
+    # Si une sous-règle n'a pas de condition, elle sera considérée
+    # comme un 'else' (les sous-règles suivantes ne seront pas lues)
 
-- Il n'est pas permis de dÃ©finir plus d'une action similaire dans une seule (sous-)rÃ¨gle. Cependant, il reste possible d'exÃ©cuter une action similaire plusieurs fois dans une seule rÃ¨gle (se rÃ©fÃ©rer Ã  la syntaxe spÃ©cifique Ã  chaque action pour voir comment faire cela):
+- Il n'est pas permis de définir plus d'une action similaire dans une seule (sous-)règle. Cependant, il reste possible d'exécuter une action similaire plusieurs fois dans une seule règle (se référer à la syntaxe spécifique à chaque action pour voir comment faire cela):
 
 .   Cela n'est B<pas> permis:
 
@@ -2373,9 +2375,9 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
      - f501b
      - f501c
 
-=head3 - un petit script pour tester vos rÃ¨gles
+=head3 - un petit script pour tester vos règles
 
-- B<Il est fortement recommendÃ© de tester chaque rÃ¨gle sur une notice de test avant de l'utiliser sur un large lot de notices>. Vous pouvez crÃ©er un script (par exemple C<< test.pl >>) avec le contenu ci-dessous (que vous adapterez pour tester vos rÃ¨gles) et le lancer avec C<< perl ./test.pl >> :
+- B<Il est fortement recommendé de tester chaque règle sur une notice de test avant de l'utiliser sur un large lot de notices>. Vous pouvez créer un script (par exemple C<< test.pl >>) avec le contenu ci-dessous (que vous adapterez pour tester vos règles) et le lancer avec C<< perl ./test.pl >> :
 
     #!/usr/bin/perl
     use MARC::Transform;
@@ -2396,17 +2398,17 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =head3 - Dans les actions
 
-- Les noms des champs et des sous-champs sont trÃ¨s importants: 
+- Les noms des champs et des sous-champs sont très importants: 
 
 =over 4
 
 =item * Ils doivent commencer par la lettre B<f> suivi des B<3 chiffres> du nom du champ (par exemple f099), suivi, pour les sous-champs, par leur B<lettre ou chiffre> (par exemple B<f501b>).
 
-=item * Les noms des champs de contrÃ´le commencent par la lettre B<f> suivi par B<3 chiffres infÃ©rieur Ã  010> suivi par B<underscore> (par exemple B<f005_>). 
+=item * Les noms des champs de contrôle commencent par la lettre B<f> suivi par B<3 chiffres inférieur à 010> suivi par B<underscore> (par exemple B<f005_>). 
 
 =item * B<Les indicateurs> doivent commencer par la lettre B<i>, suivi des B<3 chiffres> du nom du champ suivi par la position de l'indicateur(B<1 or 2>) (par exemple B<i0991>).
 
-=item * Dans les actions, vous pouvez dÃ©finir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se rÃ©fÃ¨re au champ de la condition (si nous n'avons dÃ©fini qu'un seul champ Ã  tester dans la condition), ou au champ en cours de traitement dans l'action:
+=item * Dans les actions, vous pouvez définir B<un sous-champ directement> (ou un indicateur avec i1 ou i2). Selon le contexte, il se réfère au champ de la condition (si nous n'avons défini qu'un seul champ à tester dans la condition), ou au champ en cours de traitement dans l'action:
 
     ---
     condition : $f501a eq "foo"
@@ -2423,20 +2425,20 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
 
 =over 4
 
-=item * Dans les conditions la convention de nommage des champs et des sous-champs suit les B<mÃªmes rÃ¨gles que les actions>, mais ils doivent Ãªtre B<prÃ©cÃ©dÃ©s du symbole dollar $> (par exemple C<$f110c> pour un sous-champ ou C<$i0991> pour un indicateur).
+=item * Dans les conditions la convention de nommage des champs et des sous-champs suit les B<mêmes règles que les actions>, mais ils doivent être B<précédés du symbole dollar $> (par exemple C<$f110c> pour un sous-champ ou C<$i0991> pour un indicateur).
 
-=item * Le leader de la notice peut Ãªtre dÃ©fini avec B<$ldr>.
+=item * Le leader de la notice peut être défini avec B<$ldr>.
 
-=item * Il est possible de tester la valeur d'un seul caractÃ¨re dans les sous-champs ou le leader. Pour faire cela, vous devez ajouter la B<position de ce caractÃ¨re Ã  partir de 0 et jusqu'Ã  99>:
+=item * Il est possible de tester la valeur d'un seul caractère dans les sous-champs ou le leader. Pour faire cela, vous devez ajouter la B<position de ce caractère à partir de 0 et jusqu'à 99>:
 
-    #pour tester le 3e caractÃ¨re du leader et le 12e dans le 501$a:
+    #pour tester le 3e caractère du leader et le 12e dans le 501$a:
     condition : $ldr2 eq "t" and $f501a11 eq "z"
 
 =back
 
 =head3 - Lancer des actions uniquement sur les champs de la condition
 
-Nous avons dÃ©jÃ  vu que pour se rÃ©fÃ©rer au champ de la condition dans les actions, il est possible de dÃ©finir les sous-champs directement. Cela fonctionne uniquement si nous avons dÃ©finis seulement un champ Ã  tester dans la condition. Si nous avons plus d'un champ dans la condition, pour s'y rÃ©fÃ©rer, leurs B<noms doivent aussi commencer par $> (cela fonctionne Ã©galement avec un champ unique dans la condition).
+Nous avons déjà vu que pour se référer au champ de la condition dans les actions, il est possible de définir les sous-champs directement. Cela fonctionne uniquement si nous avons définis seulement un champ à tester dans la condition. Si nous avons plus d'un champ dans la condition, pour s'y référer, leurs B<noms doivent aussi commencer par $> (cela fonctionne également avec un champ unique dans la condition).
 
 Par exemple, si vous testez la valeur du $f501a dans la condition:
 
@@ -2450,13 +2452,13 @@ Par exemple, si vous testez la valeur du $f501a dans la condition:
     condition : $f501a eq "foo" and defined $f501b
     delete : f501c
 
-- cela va crÃ©er un nouveau champ '701' avec un sous-champ 'c' contenant la valeur du sous-champ 501$a dÃ©fini dans la condition:
+- cela va créer un nouveau champ '701' avec un sous-champ 'c' contenant la valeur du sous-champ 501$a défini dans la condition:
 
     condition : defined $f501a
     create :
      f701c : $f501a
 
-B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition, ces sous-champs doivent Ãªtre dÃ©finis dans la condition:
+B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition, ces sous-champs doivent être définis dans la condition:
 
 - cela ne fonctionne B<pas>:
 
@@ -2464,19 +2466,19 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
     create :
      f701a : $f501c
      
-- cela fonctionne (crÃ©e un nouveau champ '701' avec un sous-champ 'a' contenant la valeur du sous-champ 501$c de la condition):
+- cela fonctionne (crée un nouveau champ '701' avec un sous-champ 'a' contenant la valeur du sous-champ 501$c de la condition):
 
     condition : $f501a eq "foo" and defined $f501c
     create :
      f701a : $f501c
 
-- Cette restriction est vrai uniquement pour les valeurs des sous-champs mais pas pour spÃ©cifier les champs affectÃ©s par une action : l'exemple ci-dessous va crÃ©er un nouveau sous-champ 'c' B<dans un champ dÃ©fini dans la condition>.
+- Cette restriction est vrai uniquement pour les valeurs des sous-champs mais pas pour spécifier les champs affectés par une action : l'exemple ci-dessous va créer un nouveau sous-champ 'c' B<dans un champ défini dans la condition>.
 
     condition : $f501a eq "foo" and $f110a == 2
     create :
      $f501c : new subfield value
     # Si il y a de multiples champs '501', seuls ceux ayant un
-    # sous-champ 'a'='foo' auront un nouveau sous-champ 'c' crÃ©Ã©
+    # sous-champ 'a'='foo' auront un nouveau sous-champ 'c' créé
 
 =head2 - Actions
 
@@ -2484,7 +2486,7 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
 
 =over 4
 
-=item * Comme son nom l'indique, cette action vous permet de crÃ©er de nouveaux champs et sous-champs.
+=item * Comme son nom l'indique, cette action vous permet de créer de nouveaux champs et sous-champs.
 
 =item * Syntaxe:
 
@@ -2492,13 +2494,13 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
     create :
      <nom de sous-champ> : <valeur>
     
-    # pour crÃ©er deux sous-champs (dans un champ) avec le mÃªme nom:
+    # pour créer deux sous-champs (dans un champ) avec le même nom:
     create :
      <nom de sous-champ> :
       - <valeur>
       - <valeur>
     
-    # avancÃ©e:
+    # avancée:
     create :
      <nom de champ> :
       <nom de sous-champ> : 
@@ -2522,14 +2524,14 @@ B<ATTENTION>: Pour avoir B<la valeur> des sous-champs des champs de la condition
        - second 'a' subfield of this new 600 field
       b : the 600b value
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _b1
            _cbar
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _b1
@@ -2542,7 +2544,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
            _asecond 'a' subfield of this new 600 field
            _bthe 600b value
 
-=item * faites attention: vous devez utilisez des listes pour crÃ©er plusieurs sous-champs avec le mÃªme nom dans un champ:
+=item * faites attention: vous devez utilisez des listes pour créer plusieurs sous-champs avec le même nom dans un champ:
 
     # ne fonctionne pas:
     create :
@@ -2555,7 +2557,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action vous permet de mettre Ã  jour les champs B<existants>. Cette action met Ã  jour tous les sous-champs spÃ©cifiÃ©s de tous les champs spÃ©cifiÃ©s (si le champ spÃ©cifiÃ© est un champ de la condition, il sera le seul Ã  Ãªtre mis Ã  jour )
+=item * Cette action vous permet de mettre à jour les champs B<existants>. Cette action met à jour tous les sous-champs spécifiés de tous les champs spécifiés (si le champ spécifié est un champ de la condition, il sera le seul à être mis à jour )
 
 =item * Syntaxe:
 
@@ -2563,7 +2565,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     update :
      <nom de sous-champ> : <valeur>
     
-    # avancÃ©e:
+    # avancée:
     update :
      <nom de sous-champ> : <valeur>
      <nom de sous-champ> : <valeur>
@@ -2582,7 +2584,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
       a : updated value of all 'a' subfields into all '501' fields
       b : $f502a is the 502a condition's field's value
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2597,7 +2599,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     502    _apoto
     502    _btruc
            _cbidule
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _aupdated value of all 'a' subfields into all '501' fields
            _bsecond a is the 502a condition's field's value
@@ -2617,9 +2619,9 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action est B<identique Ã  update>, exceptÃ© qu'elle met Ã  jour seulement le B<premier> sous-champ des champs spÃ©cifiÃ©s
+=item * Cette action est B<identique à update>, excepté qu'elle met à jour seulement le B<premier> sous-champ des champs spécifiés
 
-=item * B<Syntaxe>: exceptÃ© pour le nom de l'action, c'est la B<mÃªme que la syntaxe de update>
+=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2632,7 +2634,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
       a : updated value of first 'a' subfields into all '501' fields
       b : $f502a is the value of 502a conditionnal field
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2647,7 +2649,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     502    _apoto
     502    _btruc
            _cbidule
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _aupdated value of first 'a' subfields into all '501' fields
            _bsecond a is the value of 502a conditionnal field
@@ -2667,11 +2669,11 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Si le B<sous-champ spÃ©cifiÃ© existe>: ces actions sont identiques aux actions B<update> et updatefirst
+=item * Si le B<sous-champ spécifié existe>: ces actions sont identiques aux actions B<update> et updatefirst
 
-=item * Si le B<sous-champ spÃ©cifiÃ© n'existe pas>: ces actions sont identiques Ã  l'action B<create>
+=item * Si le B<sous-champ spécifié n'existe pas>: ces actions sont identiques à l'action B<create>
 
-=item * B<Syntaxe>: exceptÃ© pour le nom de l'action, c'est la B<mÃªme que la syntaxe de update>
+=item * B<Syntaxe>: excepté pour le nom de l'action, c'est la B<même que la syntaxe de update>
 
 =item * Exemple:
 
@@ -2684,7 +2686,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
       a : '503a' value's
       b : $f502a is the 502a condition's value
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2699,7 +2701,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
            _bbbb
            _ccc1
            _ccc2
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _b1
@@ -2715,7 +2717,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
            _c'502c' value's
     503    _a'503a' value's
            _bsecond a is the 502a condition's value
-    --notice transformÃ©e si nous avions utilisÃ© forceupdatefirst--
+    --notice transformée si nous avions utilisé forceupdatefirst--
     LDR                         
     501    _afoo
            _b1
@@ -2745,7 +2747,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     # basique:
     delete : <nom de champ ou sous-champ>
     
-    # avancÃ©e:
+    # avancée:
     delete :
      - <nom de champ ou sous-champ>
      - <nom de champ ou sous-champ>
@@ -2766,7 +2768,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
      - f503
      - f504a
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2780,7 +2782,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     504    _aata1
            _aata2
            _btbbt
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _abar
     504    _btbbt
@@ -2798,7 +2800,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     # basique:
     duplicatefield : <nom de champ> > <nom de champ>
     
-    # avancÃ©e:
+    # avancée:
     duplicatefield :
      - <nom de champ> > <nom de champ>
      - <nom de champ> > <nom de champ>
@@ -2818,7 +2820,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
      - $f501 > f402
      - f005 > f006
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -2830,7 +2832,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     501 12 _abar
            _bbb1
            _bbb2
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     005     controlfield_content2
     005     controlfield_content1
@@ -2858,16 +2860,16 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
 
 =over 4
 
-=item * Cette action vous permet de dÃ©finir du code Perl qui sera exÃ©cutÃ© avec C<< eval >>
+=item * Cette action vous permet de définir du code Perl qui sera exécuté avec C<< eval >>
 
-Vous pouvez executer des fonctions Ã©crites directement dans le YAML ( pour des dÃ©tails sur l'Ã©criture de subs perl dans le YAML, rÃ©fÃ©rez vous au chapitre suivant: Utiliser des fonctions Perl et des tables des correspondance)
+Vous pouvez executer des fonctions écrites directement dans le YAML ( pour des détails sur l'écriture de subs perl dans le YAML, référez vous au chapitre suivant: Utiliser des fonctions Perl et des tables des correspondance)
 
 =item * Syntaxe:
 
     # basique:
     execute : <code perl>
     
-    # avancÃ©e:
+    # avancée:
     execute :
      - <code perl>
      - <code perl>
@@ -2887,7 +2889,7 @@ Vous pouvez executer des fonctions Ã©crites directement dans le YAML ( pour des 
      subs : >
         sub warnfoo { my $string = shift;warn $string; }
 
-rÃ©sultat (dans stderr):
+résultat (dans stderr):
 
     f501a eq bar at (eval 30) line 6, <$yamls> line 1.
     barbar at (eval 30) line 7, <$yamls> line 1.
@@ -2897,21 +2899,21 @@ rÃ©sultat (dans stderr):
 
 =head2 - Utiliser des fonctions Perl et des tables des correspondance
 
-Vous pouvez utiliser des fonctions Perl (B<subs>) et des tables de correspondance (B<LUT> pour LookUp Tables) pour dÃ©finir avec une plus grande flexibilitÃ© les valeurs qui vont Ãªtre crÃ©Ã©es ou mises Ã  jour avec les actions: create, forceupdate, forceupdatefirst, update and updatefirst.
+Vous pouvez utiliser des fonctions Perl (B<subs>) et des tables de correspondance (B<LUT> pour LookUp Tables) pour définir avec une plus grande flexibilité les valeurs qui vont être créées ou mises à jour avec les actions: create, forceupdate, forceupdatefirst, update and updatefirst.
 
-Ces fonctions (et tables des correspondance) peuvent Ãªtre B<Ã©crites dans une rÃ¨gle> (dans ce cas elles ne peuvent Ãªtre utilisÃ©e que par cette rÃ¨gle) B<ou aprÃ¨s la derniÃ¨re rÃ¨gle> ( aprÃ¨s le dernier ---, elles peuvent alors Ãªtre utilisÃ©es dans toutes les rÃ¨gles: B<global_subs> et B<global_LUT> ).
+Ces fonctions (et tables des correspondance) peuvent être B<écrites dans une règle> (dans ce cas elles ne peuvent être utilisée que par cette règle) B<ou après la dernière règle> ( après le dernier ---, elles peuvent alors être utilisées dans toutes les règles: B<global_subs> et B<global_LUT> ).
 
 =head3 - Variables
 
-Quatre types de variables peuvent Ãªtre utilisÃ©s:
+Quatre types de variables peuvent être utilisés:
 
-=head4 - $this, et les Ã©lÃ©ments de la condition
+=head4 - $this, et les éléments de la condition
 
 =over 4
 
-=item * les variables pointant sur la valeur des sous-champs de la condition sont celles que nous avons dÃ©jÃ  vu dans le chapitre 'Lancer des actions uniquement sur les champs de la condition' (par exemple B<$f110c>)
+=item * les variables pointant sur la valeur des sous-champs de la condition sont celles que nous avons déjà vu dans le chapitre 'Lancer des actions uniquement sur les champs de la condition' (par exemple B<$f110c>)
 
-=item * B<$this>: c'est la variable Ã  utiliser pour pointer sur la B<valeur du sous-champ en cours>. $this peut aussi Ãªtre utilisÃ©e dans une sub ou une LUT.
+=item * B<$this>: c'est la variable à utiliser pour pointer sur la B<valeur du sous-champ en cours>. $this peut aussi être utilisée dans une sub ou une LUT.
 
 Exemple (N.B.: la sub 'fromo2e' convertit les 'o' en 'e'):
 
@@ -2927,14 +2929,14 @@ Exemple (N.B.: la sub 'fromo2e' convertit les 'o' en 'e'):
      subs: >
         sub fromo2e { my $string=shift; $string =~ s/o/e/g; $string; }
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _bboo
            _ddoo
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _bbee
@@ -2945,7 +2947,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
 
 =head4 - $mth
 
-B<$mth> est l'Ã©ventuel hashref passÃ© comme troisiÃ¨me argument. Il est utilisable en Ã©criture (dans les subs et les global_subs) et en lecture. Cela permet d'intÃ©ragir avec le script qui appelle MARC::Transform.
+B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisable en écriture (dans les subs et les global_subs) et en lecture. Cela permet d'intéragir avec le script qui appelle MARC::Transform.
 
 =over 4
 
@@ -2980,7 +2982,7 @@ B<$mth> est l'Ã©ventuel hashref passÃ© comme troisiÃ¨me argument. Il est utilisa
     $record = MARC::Transform->new($record,$yaml,\%mth);
     print "\n--transformed record-- ".$mth{"inc"}." : \n". $record->as_formatted ."\n";
 
-rÃ©sultat :
+résultat :
 
     --init record--
     LDR optionnal leader
@@ -2997,22 +2999,22 @@ B<$record> est l'objet MARC::Record en cours de traitement.
 
 =head3 - subs
 
-=head4 - A l'intÃ©rieur des rÃ¨gles
+=head4 - A l'intérieur des règles
 
 =over 4
 
 =item *  Syntaxe:
 
-    #rÃ¨gle entiÃ¨re:
+    #règle entière:
     ---
     -
-     <syntaxe d'invocation de la mÃ©thode dans les valeurs des actions>
+     <syntaxe d'invocation de la méthode dans les valeurs des actions>
     -
      subs: >
         <une ou plusieurs subs Perl>
     ---
     
-    # syntaxe d'invocation de la mÃ©thode:
+    # syntaxe d'invocation de la méthode:
     \&<sub name>("<arguments>")
 
 =item * Exemple:
@@ -3047,13 +3049,13 @@ B<$record> est l'objet MARC::Record en cours de traitement.
         }
         
         sub trim {
-            # Cette fonction enlÃ¨ve ",00" Ã  la fin d'une chaÃ®ne
+            # Cette fonction enlève ",00" à la fin d'une chaîne
             my $in = shift;
             $in=~s/,00$//;
             return $in;
         }
 
-rÃ©sultat (avec C<< $record->as_formatted >>):
+résultat (avec C<< $record->as_formatted >>):
 
     --notice d'origine--
     LDR                         
@@ -3061,7 +3063,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
            _b8/12/10
            _cboo
            _d40,00
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _b2010-12-08
@@ -3080,7 +3082,7 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
     global_subs: >
         <une ou plusieurs subs Perl>
     
-    # syntaxe d'invocation de la mÃ©thode
+    # syntaxe d'invocation de la méthode
     \&<sub name>("<arguments>")
 
 =item * Exemple:
@@ -3097,20 +3099,20 @@ rÃ©sultat (avec C<< $record->as_formatted >>):
      }
      
      sub trim {
-         # Cette fonction enlÃ¨ve ",00" Ã  la fin d'une chaÃ®ne
+         # Cette fonction enlève ",00" à la fin d'une chaîne
          my $in = shift;
          $in=~s/,00$//;
          return $in;
      }
 
-rÃ©sultat (avec C<< $record->as_formatted >> ):
+résultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _afoo
            _bbar
            _c40,00
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _afoo
            _bMARC-8
@@ -3120,29 +3122,29 @@ rÃ©sultat (avec C<< $record->as_formatted >> ):
 
 =head3 - LUT
 
-Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiÃ©e (Ã  moins que vous n'ayez dÃ©finit une valeur par dÃ©faut avec C<< _default_value_ >> ).
+Si une valeur n'a pas de correspondance dans une table de correspondance, elle n'est pas modifiée (à moins que vous n'ayez définit une valeur par défaut avec C<< _default_value_ >> ).
 
-Si vous voulez utiliser plus d'une table de correspondance dans une rÃ¨gle, vous devez utiliser une global_LUT car elle diffÃ©rencie les tables avec des titres.
+Si vous voulez utiliser plus d'une table de correspondance dans une règle, vous devez utiliser une global_LUT car elle différencie les tables avec des titres.
 
-=head4 - A l'intÃ©rieur des rÃ¨gles
+=head4 - A l'intérieur des règles
 
 =over 4
 
 =item *  Syntaxe:
 
-    #rÃ¨gle entiÃ¨re:
+    #règle entière:
     ---
     -
      <syntaxe d'invocation de la LUT dans les valeurs des actions>
     -
      LUT :
-       <valeur de dÃ©part> : <valeur finale>
-       <valeur de dÃ©part> : <valeur finale>
-       _default_value_ : valeur par dÃ©faut optionnelle
+       <valeur de départ> : <valeur finale>
+       <valeur de départ> : <valeur finale>
+       _default_value_ : valeur par défaut optionnelle
     ---
     
     # syntaxe d'invocation de la LUT:
-    \&LUT("<valeur de dÃ©part>")
+    \&LUT("<valeur de départ>")
 
 =item * Exemple:
 
@@ -3159,13 +3161,13 @@ Si vous voulez utiliser plus d'une table de correspondance dans une rÃ¨gle, vous
       2 : second
       bar : openbar
 
-rÃ©sultat (avec C<< $record->as_formatted >> ):
+résultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _bbar
            _c1
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _bbar
            _cfirst
@@ -3182,15 +3184,15 @@ rÃ©sultat (avec C<< $record->as_formatted >> ):
     ---
     global_LUT:
      <titre de la LUT> :
-      <valeur de dÃ©part> : <valeur finale>
-      <valeur de dÃ©part> : <valeur finale>
-      _default_value_ : valeur par dÃ©faut optionnelle
+      <valeur de départ> : <valeur finale>
+      <valeur de départ> : <valeur finale>
+      _default_value_ : valeur par défaut optionnelle
      <titre de la LUT> :
-      <valeur de dÃ©part> : <valeur finale>
-      <valeur de dÃ©part> : <valeur finale>
+      <valeur de départ> : <valeur finale>
+      <valeur de départ> : <valeur finale>
     
     # syntaxe d'invocation de la global_LUT:
-    \&LUT("<valeur de dÃ©part>","<titre de la LUT>")
+    \&LUT("<valeur de départ>","<titre de la LUT>")
 
 =item * Exemple:
 
@@ -3210,7 +3212,7 @@ rÃ©sultat (avec C<< $record->as_formatted >> ):
       1 : one
       2 : two
 
-rÃ©sultat (avec C<< $record->as_formatted >> ):
+résultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
@@ -3218,7 +3220,7 @@ rÃ©sultat (avec C<< $record->as_formatted >> ):
            _a3
            _bfoo
            _cSF
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _aone
            _a3
@@ -3231,7 +3233,7 @@ rÃ©sultat (avec C<< $record->as_formatted >> ):
 
 =over 4
 
-=item *  B<NB : >si vous appelez MARC::Transform avec le troisiÃ¨me paramÃ¨tre, le module en rempli la clÃ© nommÃ©e C<< _defaultLUT_to_mth_ >> au cas oÃ¹ vous souhaiteriez conserver, dans le script d'appel, une trace des valeurs et types (nommÃ© C<< lookuptableforthis >> pour les LUT non globales) sans correspondance. C<< $$mth{"_defaultLUT_to_mth_"} >> est vidÃ©e Ã  chaque fois que MARC::Transform->new est appelÃ©.
+=item *  B<NB : >si vous appelez MARC::Transform avec le troisième paramètre, le module en rempli la clé nommée C<< _defaultLUT_to_mth_ >> au cas où vous souhaiteriez conserver, dans le script d'appel, une trace des valeurs et types (nommé C<< lookuptableforthis >> pour les LUT non globales) sans correspondance. C<< $$mth{"_defaultLUT_to_mth_"} >> est vidée à chaque fois que MARC::Transform->new est appelé.
 
 =item * Si nous rappellons l'exemple ci-dessus avec :
 
@@ -3252,7 +3254,7 @@ cela renverra sur la sortie standard :
                           ]
             };
 
-essayez ceci si vous souhaitez rÃ©cupÃ©rer le contenu de $mth{"_defaultLUT_to_mth_"} Ã  la place de la ligne contenant Data::Dumper::Dumper :
+essayez ceci si vous souhaitez récupérer le contenu de $mth{"_defaultLUT_to_mth_"} à la place de la ligne contenant Data::Dumper::Dumper :
 
     foreach my $k (keys(%{$mth{"_defaultLUT_to_mth_"}}))
     {
@@ -3262,15 +3264,15 @@ essayez ceci si vous souhaitez rÃ©cupÃ©rer le contenu de $mth{"_defaultLUT_to_mt
 
 =back
 
-=head1 - DerniÃ¨res astuces et un gros exemple de YAML
+=head1 - Dernières astuces et un gros exemple de YAML
 
 =over 4
 
-=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple Ã  corriger. Si vous avez dÃ©fini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
+=item * Si votre script renvoie une erreur du type "YAML Error: Stream does not end with newline character", c'est simple à corriger. Si vous avez défini votre YAML dans une variable, elle doit se terminer par une nouvelle ligne vide. Si vous avez donner un chemin vers votre fichier, il n'est vraisemblablement pas bon : essayez avec un chemin absolu.
 
-=item * Restriction: le cas spÃ©cifique des guillemets doubles (") et du symbole dollar ($): 
+=item * Restriction: le cas spécifique des guillemets doubles (") et du symbole dollar ($): 
 
-Dans le YAML, ces caractÃ¨res sont interprÃ©tÃ©s diffÃ©remment. Pour les utiliser dans un contexte de chaÃ®ne de caractÃ¨re, vous devrez les remplacer  dans le YAML par C<#_dbquote_#> (pour ") et C<#_dollars_#> (pour $):
+Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser dans un contexte de chaîne de caractère, vous devrez les remplacer  dans le YAML par C<#_dbquote_#> (pour ") et C<#_dollars_#> (pour $):
 
 . Exemple:
 
@@ -3279,19 +3281,19 @@ Dans le YAML, ces caractÃ¨res sont interprÃ©tÃ©s diffÃ©remment. Pour les utilise
     create :
      f604a : "#_dbquote_#$f501a#_dbquote_# contain a #_dollars_# sign"
 
-. rÃ©sultat (avec C<< $record->as_formatted >> ):
+. résultat (avec C<< $record->as_formatted >> ):
 
     --notice d'origine--
     LDR                         
     501    _aI want "$"
-    --notice transformÃ©e--
+    --notice transformée--
     LDR                         
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
 
-=item * Exemple: n'hÃ©sitez pas Ã  copier les exemples de cette documentation. Faite attention car j'ai ajoutÃ© quatre caractÃ¨res espace au dÃ©but de chaque ligne des exemples pour qu'ils soient mieux affichÃ©s par l'interprÃ©teur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractÃ¨res de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
+=item * Exemple: n'hésitez pas à copier les exemples de cette documentation. Faite attention car j'ai ajouté quatre caractères espace au début de chaque ligne des exemples pour qu'ils soient mieux affichés par l'interpréteur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractères de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
 
-=item * Ce yaml a Ã©tÃ© appellÃ© comme ceci: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
+=item * Ce yaml a été appellé comme ceci: C<< my %mth; $mth{"var"}="a string"; $record = MARC::Transform->new($record,$yaml,\%mth); >>
 
     ---
     condition : $f501a eq "foo"
@@ -3376,7 +3378,7 @@ Dans le YAML, ces caractÃ¨res sont interprÃ©tÃ©s diffÃ©remment. Pour les utilise
       1 : one
       2 : two
 
-rÃ©sultat (avec C<< $record->as_formatted >> ) :
+résultat (avec C<< $record->as_formatted >> ) :
 
     --notice d'origine--
     LDR optionnal leader
@@ -3402,7 +3404,7 @@ rÃ©sultat (avec C<< $record->as_formatted >> ) :
            _bbar
            _ctruc
     
-    --notice transformÃ©e--
+    --notice transformée--
     LDR optionnalaleader
     006     UTF-8
     007     controlfield_content8b
@@ -3445,6 +3447,8 @@ rÃ©sultat (avec C<< $record->as_formatted >> ) :
 
 =item * MARC::Field (L<http://search.cpan.org/perldoc?MARC::Field>)
 
+=item * MARC::Loader (L<http://search.cpan.org/perldoc?MARC::Loader>)
+
 =item * YAML (L<http://search.cpan.org/perldoc?YAML>)
 
 =item * Library Of Congress MARC pages (L<http://www.loc.gov/marc/>)
@@ -3455,7 +3459,7 @@ The definitive source for all things MARC.
 
 =head1 - AUTEUR
 
-StÃ©phane Delaune, (delaune.stephane at gmail.com)
+Stéphane Delaune, (delaune.stephane at gmail.com)
 
 =head1 - COPYRIGHT
 
