@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.003003';
+our $VERSION = '0.003004';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -808,8 +808,9 @@ sub testrule {
         my $condition=$$rul{'condition'};
         $condition=~s/(\$ldr(\d{1,2}))/\(substr\(\$record->leader\(\),$2,1)\)/g;
         $condition=~s/(\$ldr)/(\$record->leader\(\)\)/g;
+        $condition=~s/(\$f\d{3})(\w)/defined($1$2) and $1$2/g;
         $condition=~s/(\$f\d{3})(\w)(\d{1,2})/\(substr($1$2,$3,1\)\)/g;
-        $condition=~s/(\$f\d{3})(\w)/$1$2/g;
+        $condition=~s/(\$f\d{3})(\w)/$1$2/g;#I can't remember why I did this
         $condition=~s/(\$i(\d{3}))(\d)/\(\$f$2->indicator\($3\)\)/g;
         my $boolsubtagrule=0;
         my %boolsubtaglist=();
@@ -903,7 +904,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.003003
+Version 0.003004
 
 =head1 SYNOPSIS
 
@@ -2004,6 +2005,8 @@ In YAML, these characters are interpreted differently. To use them in string con
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
 
+=item * Restriction: You can test if a field or subfield exists, but it is inadvisable to test its absence.
+
 =item * Example: feel free to copy the examples in this documentation. Be aware that I have added four space characters at the beginning of each exemple's line to make them better displayed by the POD interpreter. If you copy / paste them into your YAML configuration file, Be sure to remove the first four characters of each line (e.g. with vim, C<:%s/^\s\s\s\s//g> ). 
 
 =item * 
@@ -2190,7 +2193,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 - VERSION
 
-Version 0.003003
+Version 0.003004
 
 =head1 - SYNOPSIS
 
@@ -3290,6 +3293,8 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utiliser da
     LDR                         
     501    _aI want "$"
     604    _a"I want "$"" contain a $ sign
+
+=item * Restriction: Vous pouvez tester si un champ ou sous-champ existe, mais il est déconseillé de tester son absence.
 
 =item * Exemple: n'hésitez pas à copier les exemples de cette documentation. Faite attention car j'ai ajouté quatre caractères espace au début de chaque ligne des exemples pour qu'ils soient mieux affichés par l'interpréteur POD. Si vous les copiez / collez dans votre fichier de configuration YAML, n'oubliez pas de supprimer les quatres premier caractères de chaque ligne (par exemple avec vim, C<:%s/^\s\s\s\s//g> ). 
 

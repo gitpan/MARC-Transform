@@ -669,7 +669,7 @@ is($v22a,$v22b,"");
 #test 23
 my $record23 = MARC::Record->new();
 $record23->leader('optionnal leader');
-$record23->insert_fields_ordered( MARC::Field->new( '500', '', '', 'a' => '0123456789abcd') );
+$record23->insert_fields_ordered( MARC::Field->new( '105', '', '', 'a' => '0123456789abcd') );
 #print "--init record--\n". $record23->as_formatted;
 my $yaml23 = '
 ---
@@ -680,7 +680,7 @@ create :
 $record23 = MARC::Transform->new($record23,$yaml23);
 #print "\n--transformed record--\n". $record23->as_formatted ."\n";
 my $v23a=recordtostring($record23);
-my $v23b="optionnal leader||||500:  |a:0123456789abcd||604:  |a:ok";
+my $v23b="optionnal leader||||105:  |a:0123456789abcd||604:  |a:ok";
 is($v23a,$v23b,"");
 
 #test 24
@@ -809,3 +809,28 @@ $record26 = MARC::Transform->new($record26,$yaml26);
 my $v26a=recordtostring($record26);
 my $v26b="012345gs0 2200253   4500||||008:d||099:  |t:13|v:d||115:  |v:d||116:  |v:d||117:  |v:d||135:  |a:vo||215:  |v:d||463:  |v:test0||464:  |v:d||700:  |a:test0||995:  |0:test0|a:test1|b:test2|c:test3|d:test4|e:test5|f:test6|g:test7|h:test8|i:test9|j:test10|k:test11";
 is($v26a,$v26b, "" );
+
+#test 27
+my $record27 = MARC::Record->new();
+$record27->leader('01499nam0 2200301   4500');
+$record27->insert_fields_ordered( MARC::Field->new( '008', 'y   7   000yy') );
+$record27->insert_fields_ordered( MARC::Field->new( '105', '', '', 'a' => 'y   7   000yy') );
+#print "--init record--\n". $record27->as_formatted;
+my $yaml27 = '---
+-
+ condition : ($ldr7 eq "m") and ($ldr6 eq "a" or $ldr6 eq "m" or $ldr6 eq "l") and ($f105a4 ne "m") and ($f105a4 ne "v") and ($f105a4 ne "7")
+ create :
+  f099t : LIV
+-
+ condition : $f105a4 eq "m" or $f105a4 eq "v" or $f105a4 eq "7"
+ create :
+  f099t : THE
+-
+ create :
+  f099t : AUT
+';
+$record27 = MARC::Transform->new($record27,$yaml27);
+#print "\n--transformed record--\n". $record27->as_formatted ."\n";
+my $v27a=recordtostring($record27);
+my $v27b="01499nam0 2200301   4500||||008:y   7   000yy||099:  |t:THE||105:  |a:y   7   000yy";
+is($v27a,$v27b,"");
