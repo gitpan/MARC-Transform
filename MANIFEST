@@ -1,7 +1,0 @@
-Build.PL
-lib/MARC/Transform.pm
-MANIFEST
-META.yml
-README
-t/test.t
-Makefile.PL
