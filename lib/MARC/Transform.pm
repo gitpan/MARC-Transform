@@ -7,7 +7,7 @@ use Carp;
 use MARC::Record;
 use YAML;
 use Scalar::Util qw< reftype >;
-our $VERSION = '0.003005';
+our $VERSION = '0.003006';
 our $DEBUG = 0;
 sub debug { $DEBUG and say STDERR @_ }
 
@@ -812,11 +812,11 @@ sub testrule {
         $condition=~s/(\$f\d{3})(\w)(\d{1,2})/\(substr($1$2,$3,1\)\)/g;
         $condition=~s/(\$f\d{3})(\w)/$1$2/g;#I can't remember why I did this
         $condition=~s/(\$i(\d{3}))(\d)/\(\$f$2->indicator\($3\)\)/g;
+        my $booltagrule=0;
         my $boolsubtagrule=0;
-        my %boolsubtaglist=();
-        foreach my $tag (keys(%tag_list)) {
+        foreach my $tag (sort {$a cmp $b} keys(%tag_list)) {
             my %tag_listtag = map { $_, 1 } @{$tag_list{$tag}};
-            $boolsubtaglist{$tag}=0;
+            $boolsubtagrule=0;
             my @tag_listtagunique = keys %tag_listtag;
             $globalconditionstart.='my $f'.$tag.';';
             foreach my $subtag (@tag_listtagunique) {
@@ -824,10 +824,10 @@ sub testrule {
                 $globalconditionstart.='my $f'.$tag.$subtag.';' if $globalconditionstart!~$matchdelaration;
             }
             if ( defined $record->field($tag) ) {
+                $booltagrule=1;
                 $globalconditionint.="\n".'for $f'.$tag.' ( $record->field("'.$tag.'") ) {'."\n".'$currentfield=\$f'.$tag.';'."\n";
                 foreach my $subtag (@tag_listtagunique) {
                     $boolsubtagrule=1;
-                    $boolsubtaglist{$tag}=1;
                     if ($subtag ne "tempvalueforcurrentfield" and $tag > "010") {
                         $globalconditionint.='for $f'.$tag.$subtag.' ( $f'.$tag.'->subfield("'.$subtag.'"), my $tmpintesta=1 ) { my $tmpintestb=0; if ($tmpintesta==1) { $tmpintesta=undef;$tmpintestb=1; }'."\n";
                         $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0 unless (!defined($tmpintesta) and $tmpintestb==0 );}'."\n";
@@ -838,11 +838,11 @@ sub testrule {
                         $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}'."\n";
                     }
                 }
-                $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $boolsubtaglist{$tag};
+                $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $boolsubtagrule;
                 $globalconditionend.='if ($boolcondint){ eval{'.$actionsinter.'};}}'."\n";
             }#else { $globalconditionint.='if ('.$condition.') {$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}'."\n"; }
         }
-        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $boolsubtagrule;
+        $globalconditionint.='if ('.$condition.')'."\n".'{$boolcond=1;$boolcondint=1; eval{'.$actionsin.'}}else{$boolcondint=0;}' unless $booltagrule;
         $globalconditionend.="\n".' if ($boolcond){eval{'.$actionsout.'}}'."\n".' return $boolcond;}';#if ($boolcond or ('.$condition.'))
         $globalcondition=$globalconditionstart.$globalconditionint.$globalconditionend;
         print "\n--------globalcondition----------\n$globalcondition\n---------globalcondition---------\n" if $verbose;
@@ -906,7 +906,7 @@ MARC::Transform - Perl module to transform a MARC record using a YAML configurat
 
 =head1 VERSION
 
-Version 0.003005
+Version 0.003006
 
 =head1 SYNOPSIS
 
@@ -1098,7 +1098,7 @@ For example, this means, that if we have more '501' fields in the record, if our
     #!/usr/bin/perl
     use MARC::Transform;
     my $record = MARC::Record->new();
-    $record->leader('optionnal leader');
+    $record->leader('optional leader');
     $record->insert_fields_ordered( MARC::Field->new('005', 'controlfield_content'));
     $record->insert_fields_ordered( MARC::Field->new('501', '', '', 'a' => 'foo', 'b' => 'bar') );
     print "\n--init record--\n". $record->as_formatted ."\n";
@@ -1663,7 +1663,7 @@ result (with C<< $record->as_formatted >>):
 
 =head4 $mth
 
-B<$mth> is the optional hashref add as third optional argument. It can be used in writing (into subs and global_subs) and reading. This allows to interact with the script that calls MARC::Transform.
+B<$mth> is the optional hashref add as third optional argument. It can be used in writing (into subs and global_subs) and reading. This allows interaction with the script that calls MARC::Transform.
 
 =over 4
 
@@ -1672,7 +1672,7 @@ B<$mth> is the optional hashref add as third optional argument. It can be used i
 =item * Example in a perl script :
 
     my $record = MARC::Record->new();
-    $record->leader('optionnal leader');
+    $record->leader('optional leader');
     print "--init record--\n". $record->as_formatted;
     my %mth;
     $mth{"inc"}=1;
@@ -1701,9 +1701,9 @@ B<$mth> is the optional hashref add as third optional argument. It can be used i
 result :
 
     --init record--
-    LDR optionnal leader
+    LDR optional leader
     --transformed record-- 3 : 
-    LDR optionnal leader
+    LDR optional leader
     500    _aa string
     600    _a3
 
@@ -1724,13 +1724,13 @@ B<$record> is the current MARC::Record object.
     #full rule:
     ---
     -
-     <method invokation syntax in the actions values, in sub-rule(s)>
+     <method invocation syntax in the actions values, in sub-rule(s)>
     -
      subs: >
         <one or more Perl subs>
     ---
     
-    # method invokation syntax:
+    # method invocation syntax:
     \&<sub name>("<arguments>")
 
 =item * Example:
@@ -1798,7 +1798,7 @@ result (with C<< $record->as_formatted >>):
     global_subs: >
         <one or more Perl subs>
     
-    # method invokation syntax:
+    # method invocation syntax:
     \&<sub name>("<arguments>")
 
 =item * Example:
@@ -1851,15 +1851,15 @@ If you want to use more than one LookUp Table in a rule, you must use a global_L
     #full rule:
     ---
     -
-     <LUT invokation syntax in the actions values, inside sub-rule(s)>
+     <LUT invocation syntax in the actions values, inside sub-rule(s)>
     -
      LUT :
        <starting value> : <final value>
        <starting value> : <final value>
-       _default_value_ : optionnal default value
+       _default_value_ : optional default value
     ---
     
-    # LUT invokation syntax:
+    # LUT invocation syntax:
     \&LUT("<starting value>")
 
 =item * Example:
@@ -1907,7 +1907,7 @@ result (with C<< $record->as_formatted >> ):
       <starting value> : <final value>
       <starting value> : <final value>
     
-    # global_LUT invokation syntax:
+    # global_LUT invocation syntax:
     \&LUT("<starting value>","<LUT title>")
 
 =item * Example:
@@ -2100,7 +2100,7 @@ This yaml was called like this: C<< my %mth; $mth{"var"}="a string"; $record = M
 result (with C<< $record->as_formatted >> ) :
 
     --init record--
-    LDR optionnal leader
+    LDR optional leader
     005     controlfield_content
     008     controlfield_content8a
     008     controlfield_content8b
@@ -2124,7 +2124,7 @@ result (with C<< $record->as_formatted >> ) :
            _ctruc
     
     --transformed record--
-    LDR optionnalaleader
+    LDR optional leader
     006     UTF-8
     007     controlfield_content8b
     008     controlfield_content8a
@@ -2182,7 +2182,7 @@ Stephane Delaune, (delaune.stephane at gmail.com)
 
 =head1 COPYRIGHT
 
-Copyright 2011-2013 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2014 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -2197,7 +2197,7 @@ MARC::Transform - Module Perl pour transformer une notice MARC en utilisant un f
 
 =head1 - VERSION
 
-Version 0.003005
+Version 0.003006
 
 =head1 - SYNOPSIS
 
@@ -2389,7 +2389,7 @@ Cela signifie, par exemple, que si nous avons plusieurs champs '501' dans la not
     #!/usr/bin/perl
     use MARC::Transform;
     my $record = MARC::Record->new();
-    $record->leader('optionnal leader');
+    $record->leader('optional leader');
     $record->insert_fields_ordered( MARC::Field->new('005', 'controlfield_content'));
     $record->insert_fields_ordered( MARC::Field->new('501', '', '', 'a' => 'foo', 'b' => 'bar') );
     print "\n--init record--\n". $record->as_formatted ."\n";
@@ -2963,7 +2963,7 @@ B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisa
 =item * Exemple dans un script perl :
 
     my $record = MARC::Record->new();
-    $record->leader('optionnal leader');
+    $record->leader('optional leader');
     print "--init record--\n". $record->as_formatted;
     my %mth;
     $mth{"inc"}=1;
@@ -2992,9 +2992,9 @@ B<$mth> est l'éventuel hashref passé comme troisième argument. Il est utilisa
 résultat :
 
     --init record--
-    LDR optionnal leader
+    LDR optional leader
     --transformed record-- 3 : 
-    LDR optionnal leader
+    LDR optional leader
     500    _aa string
     600    _a3
 
@@ -3390,7 +3390,7 @@ Dans le YAML, ces caractères sont interprétés différemment. Pour les utilise
 résultat (avec C<< $record->as_formatted >> ) :
 
     --notice d'origine--
-    LDR optionnal leader
+    LDR optional leader
     005     controlfield_content
     008     controlfield_content8a
     008     controlfield_content8b
@@ -3414,7 +3414,7 @@ résultat (avec C<< $record->as_formatted >> ) :
            _ctruc
     
     --notice transformée--
-    LDR optionnalaleader
+    LDR optional leader
     006     UTF-8
     007     controlfield_content8b
     008     controlfield_content8a
@@ -3472,7 +3472,7 @@ Stéphane Delaune, (delaune.stephane at gmail.com)
 
 =head1 - COPYRIGHT
 
-Copyright 2011-2013 Stephane Delaune for Biblibre.com, all rights reserved.
+Copyright 2011-2014 Stephane Delaune for Biblibre.com, all rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
